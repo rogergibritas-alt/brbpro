@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel — BRB Pro</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/admin/admin.css?v=10" />
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo"><span style="font-size:2rem;color:#C9A86A">💈</span></div>
+      <h1>BRB Pro</h1>
+      <p class="sub">Painel de gestão — acesso restrito</p>
+      <form id="formLogin">
+        <label>
+          <span>E-mail</span>
+          <input type="email" name="email" placeholder="voce@barbearia.com" autocomplete="username" required autofocus />
+        </label>
+        <label>
+          <span>Senha</span>
+          <input type="password" name="senha" placeholder="Sua senha" autocomplete="current-password" required />
+        </label>
+        <button type="submit" class="btn btn-gold btn-block">Entrar</button>
+        <p class="msg" id="msg"></p>
+      </form>
+      <a class="login-voltar" href="/">← Voltar ao site</a>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var form = document.getElementById('formLogin');
+      var msg = document.getElementById('msg');
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        msg.textContent = 'Entrando...';
+        msg.className = 'msg';
+        try {
+          var r = await fetch('/api/admin/login', {
+            credentials: 'include',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: form.email.value.trim(), senha: form.senha.value })
+          });
+          var j = await r.json();
+          if (j.ok) {
+            window.location.href = '/admin/';
+          } else {
+            msg.textContent = j.error || 'Erro ao entrar.';
+            msg.className = 'msg erro';
+          }
+        } catch (err) {
+          msg.textContent = 'Erro de conexão. Tente novamente.';
+          msg.className = 'msg erro';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

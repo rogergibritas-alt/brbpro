@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Art na Régua — Barbearia em Ouro Preto | Corte, Barba e Estilo</title>
+  <meta name="description" content="Art na Régua, barbearia no São Cristóvão, Ouro Preto-MG. Corte R$35, barba R$25, sobrancelha R$10 e mais. Agende pelo WhatsApp: (31) 99781-6616." />
+  <meta name="theme-color" content="#0b0b0d" />
+  <link rel="canonical" href="https://art-na-regua.onrender.com/" />
+
+  <!-- Open Graph (prévia do link no WhatsApp/Instagram/Facebook) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://art-na-regua.onrender.com/" />
+  <meta property="og:title" content="Art na Régua — Barbearia em Ouro Preto" />
+  <meta property="og:description" content="Corte na régua, acabamento de arte. Corte R$35 · Barba R$25. Agende pelo WhatsApp: (31) 99781-6616." />
+  <meta property="og:image" content="https://art-na-regua.onrender.com/images/og-image.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:locale" content="pt_BR" />
+  <meta property="og:site_name" content="Art na Régua" />
+
+  <!-- Twitter/X Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Art na Régua — Barbearia em Ouro Preto" />
+  <meta name="twitter:description" content="Corte na régua, acabamento de arte. Agende pelo WhatsApp." />
+  <meta name="twitter:image" content="https://art-na-regua.onrender.com/images/og-image.jpg" />
+
+  <!-- Fontes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/css/styles.css?v=17" />
+
+  <!-- Schema.org — SEO Local (BarberShop) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BarberShop",
+    "name": "Art na Régua",
+    "image": "/images/real/hero-real.jpg",
+    "priceRange": "R$10 - R$160",
+    "telephone": "+55 31 99781-6616",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "R. Padre Rolim, 945 - São Cristóvão",
+      "addressLocality": "Ouro Preto",
+      "addressRegion": "MG",
+      "postalCode": "35400-000",
+      "addressCountry": "BR"
+    },
+    "openingHoursSpecification": [
+      { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Tuesday","Wednesday","Thursday","Friday","Saturday"], "opens": "08:40", "closes": "18:00" }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <!-- INTRO EM VÍDEO (toca automaticamente e some ao terminar) -->
+  <div class="intro" id="intro" aria-hidden="false">
+    <video id="introVideo" playsinline autoplay preload="auto">
+      <source src="/video/intro.mp4" type="video/mp4" />
+    </video>
+    <button class="intro-skip" id="introSkip" type="button">Pular intro →</button>
+    <button class="intro-sound" id="introSound" type="button" title="Ativar som">🔇</button>
+  </div>
+
+  <!-- Barra de topo -->
+  <div class="topbar">
+    <span>💈 Corte R$35 · Barba R$25</span>
+    <span class="topbar-clock" id="topbarClock">—</span>
+    <a href="#agendar" class="topbar-link">Agendar agora →</a>
+  </div>
+
+  <!-- Navegação -->
+  <header class="nav" id="nav">
+    <a class="nav-logo" href="#home">
+      <img class="logo-mark" src="/images/logo-icon.png" alt="Art na Régua" />
+      Art<span> na Régua</span>
+    </a>
+    <nav class="nav-links" id="navLinks">
+      <a href="#sobre">Sobre</a>
+      <a href="#diferenciais">Diferenciais</a>
+      <a href="#servicos">Serviços</a>
+      <a href="#galeria">Galeria</a>
+      <a href="#depoimentos">Clientes</a>
+      <a href="#faq">Dúvidas</a>
+      <a href="#contato">Contato</a>
+    </nav>
+    <a href="#agendar" class="btn btn-gold nav-cta">Agendar</a>
+    <button class="nav-burger" id="navBurger" aria-label="Abrir menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero" id="home">
+    <div class="hero-bg" style="background-image:url('/images/real/hero-real.jpg')"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <p class="hero-kicker" data-reveal>Barbearia em Ouro Preto — MG</p>
+      <h1 class="hero-title" id="smokyTitle">Art na Régua</h1>
+      <p class="hero-sub" data-reveal>
+        <span class="typed" data-words='["Corte.","Barba.","Sobrancelha.","Estilo."]'></span>
+      </p>
+      <p class="hero-desc" data-reveal>Corte na régua, acabamento de arte. Aqui o seu visual sai perfeito — do jeito que você merece.</p>
+      <div class="hero-cta" data-reveal>
+        <a href="#agendar" class="btn btn-gold btn-electric">⚡ Agendar agora</a>
+        <a href="#servicos" class="btn btn-ghost">Ver serviços</a>
+      </div>
+      <div class="hero-stats" data-reveal>
+        <div><strong>+1.000</strong><span>clientes atendidos</span></div>
+        <div><strong>4.9★</strong><span>avaliação média</span></div>
+        <div><strong>10+</strong><span>serviços</span></div>
+      </div>
+    </div>
+    <a class="hero-scroll" href="#sobre" aria-label="Rolar para baixo">↓</a>
+  </section>
+
+  <!-- Marquee -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>CORTE ✂ BARBA ✂ ESTILO ✂ ART NA RÉGUA ✂ CORTE ✂ BARBA ✂ ESTILO ✂ ART NA RÉGUA ✂</span>
+    </div>
+  </div>
+
+  <!-- SOBRE -->
+  <section class="section bg-img" id="sobre" style="background-image: linear-gradient(rgba(11,11,13,0.70), rgba(11,11,13,0.80)), url('/images/real/foto1.jpg');">
+    <div class="wrap">
+      <div class="sobre-grid">
+        <div class="sobre-img" data-reveal>
+          <img src="/images/real/foto8.jpg" alt="Ambiente da Art na Régua" loading="lazy" />
+          <div class="sobre-badge">✂ Feito à mão,<br/>com orgulho</div>
+        </div>
+        <div class="sobre-text" data-reveal>
+          <p class="kicker">A barbearia</p>
+          <h2>Mais que um corte,<br/>uma <em>experiência</em>.</h2>
+          <p>Na Art na Régua, cada atendimento é feito com atenção total: corte no ponto, barba desenhada e aquele papo bom de boteco. O objetivo é simples — você sair daqui se sentindo a melhor versão de si.</p>
+          <ul class="sobre-list">
+            <li>✂ Cortes e barba com acabamento impecável</li>
+            <li>🧼 Ambiente limpo, higienizado e confortável</li>
+            <li>📱 Agendamento rápido pelo WhatsApp</li>
+            <li>💰 Preço justo, sem surpresa na hora de pagar</li>
+          </ul>
+          <a href="#agendar" class="btn btn-gold">Quero agendar</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIFERENCIAIS -->
+  <section class="section section-dark bg-img" id="diferenciais" style="background-image: linear-gradient(rgba(11,11,13,0.70), rgba(11,11,13,0.80)), url('/images/real/foto2.jpg');">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <p class="kicker">Por que a Art na Régua</p>
+        <h2>O que faz a gente <em>diferente</em></h2>
+        <p>O nome não é por acaso. Aqui o corte sai na régua — literalmente, no ponto exato.</p>
+      </div>
+      <div class="diferenciais-grid">
+        <div class="dif" data-reveal>
+          <span class="dif-emoji">📏</span>
+          <h3>Precisão "na régua"</h3>
+          <p>Corte e barba com acabamento milimétrico. Cada linha desenhada com atenção de artesão.</p>
+        </div>
+        <div class="dif" data-reveal>
+          <span class="dif-emoji">⏱️</span>
+          <h3>Pontualidade de verdade</h3>
+          <p>Horário marcado é horário cumprido. Você não perde tempo esperando na cadeira.</p>
+        </div>
+        <div class="dif" data-reveal>
+          <span class="dif-emoji">💰</span>
+          <h3>Preço justo e na cara</h3>
+          <p>Valor transparente, sem taxa escondida. Você sabe quanto paga antes de sentar.</p>
+        </div>
+        <div class="dif" data-reveal>
+          <span class="dif-emoji">🤝</span>
+          <h3>Atendimento de gente</h3>
+          <p>Aqui você não é número de fila. É cliente com nome, lembrado pelo estilo que gosta.</p>
+        </div>
+      </div>
+      <div class="dif-frase" data-reveal>
+        <p>✂️ <em>"Na régua" não é só um nome — é a forma como cada corte sai daqui.</em></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVIÇOS -->
+  <section class="section section-dark bg-img" id="servicos" style="background-image: linear-gradient(rgba(11,11,13,0.70), rgba(11,11,13,0.80)), url('/images/real/foto3.jpg');">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <p class="kicker">Tabela de preços</p>
+        <h2>Serviços & <em>valores</em></h2>
+        <p>Preço transparente, sem letra miúda. O valor que você vê é o que você paga.</p>
+      </div>
+      <div class="servicos-grid">
+        <div class="servico destaque" data-reveal>
+          <span class="servico-emoji">✂️</span>
+          <h3>Corte</h3>
+          <p>Corte de todos os estilos, no ponto certo.</p>
+          <div class="servico-preco">R$ 35</div>
+          <span class="tag">Mais pedido</span>
+        </div>
+        <div class="servico" data-reveal><span class="servico-emoji">🧔</span><h3>Barba</h3><p>Barba desenhada e alinhada na navalha.</p><div class="servico-preco">R$ 25</div></div>
+        <div class="servico" data-reveal><span class="servico-emoji">👁️</span><h3>Sobrancelha</h3><p>Limpeza e alinhamento no fio.</p><div class="servico-preco">R$ 10</div></div>
+        <div class="servico" data-reveal><span class="servico-emoji">🧔‍♂️</span><h3>Cavanhaque</h3><p>Desenho e acabamento do cavanhaque.</p><div class="servico-preco">R$ 15</div></div>
+        <div class="servico" data-reveal><span class="servico-emoji">🎨</span><h3>Pigmentação</h3><p>Preenchimento de falhas na barba.</p><div class="servico-preco">R$ 25</div></div>
+        <div class="servico" data-reveal><span class="servico-emoji">💨</span><h3>Alisamento</h3><p>Alisamento com produto de qualidade.</p><div class="servico-preco">R$ 25</div></div>
+        <div class="servico destaque" data-reveal><span class="servico-emoji">❄️</span><h3>Nevou</h3><p>Tratamento capilar premium Nevou.</p><div class="servico-preco">R$ 160</div><span class="tag">Premium</span></div>
+        <div class="servico" data-reveal><span class="servico-emoji">🫙</span><h3>Pomada</h3><p>Pomada para finalizar o estilo.</p><div class="servico-preco">R$ 35</div></div>
+        <div class="servico" data-reveal><span class="servico-emoji">💧</span><h3>Gel</h3><p>Gel fixador de alta fixação.</p><div class="servico-preco">R$ 25</div></div>
+        <div class="servico" data-reveal><span class="servico-emoji">🪔</span><h3>Óleo de barba</h3><p>Hidrata e dá brilho à barba.</p><div class="servico-preco">R$ 35</div></div>
+      </div>
+      <p class="servicos-note" data-reveal>💡 Não achou o que precisa? Chama no WhatsApp que a gente resolve.</p>
+    </div>
+  </section>
+
+  <!-- GALERIA -->
+  <section class="section bg-img" id="galeria" style="background-image: linear-gradient(rgba(11,11,13,0.70), rgba(11,11,13,0.80)), url('/images/real/foto4.jpg');">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <p class="kicker">Galeria</p>
+        <h2>Nossos <em>trabalhos</em></h2>
+        <p>Escolha uma categoria e veja tudo o que já saiu da nossa cadeira.</p>
+      </div>
+      <div class="categorias-grid" id="categoriasGrid">
+        <p class="categorias-carregando">Carregando galeria...</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEPOIMENTOS -->
+  <section class="section section-dark bg-img" id="depoimentos" style="background-image: linear-gradient(rgba(11,11,13,0.70), rgba(11,11,13,0.80)), url('/images/real/foto5.jpg');">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <p class="kicker">Prova social</p>
+        <h2>Quem sentou na <em>cadeira</em>, recomenda</h2>
+      </div>
+      <div class="depo-grid">
+        <div class="depo" data-reveal>
+          <div class="stars">★★★★★</div>
+          <p>"Melhor corte de Ouro Preto. O corte sai na régua e o preço é justo demais. Virei cliente fiel."</p>
+          <span class="depo-nome">— Cliente local</span>
+        </div>
+        <div class="depo" data-reveal>
+          <div class="stars">★★★★★</div>
+          <p>"Barba desenhada na navalha, do jeito que eu gosto. Atendimento rápido e sem enrolação."</p>
+          <span class="depo-nome">— Cliente local</span>
+        </div>
+        <div class="depo" data-reveal>
+          <div class="stars">★★★★★</div>
+          <p>"Agendei pelo WhatsApp em 1 minuto, cheguei e já fui atendido. Pontualidade nota 10."</p>
+          <span class="depo-nome">— Cliente local</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FUNCIONAMENTO -->
+  <section class="section section-dark bg-img" id="funcionamento" style="background-image: linear-gradient(rgba(11,11,13,0.70), rgba(11,11,13,0.80)), url('/images/real/foto8.jpg');">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <p class="kicker">Horários</p>
+        <h2>Funcionamento</h2>
+      </div>
+      <div class="horarios" data-reveal>
+        <div class="horario"><span>Terça a Sexta</span><strong>08:40 — 18h</strong></div>
+        <div class="horario"><span>Sábado</span><strong>08:40 — 18h</strong></div>
+        <div class="horario"><span>Segunda e Domingo</span><strong>Fechado</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENDAMENTO -->
+  <section class="section" id="agendar">
+    <div class="wrap">
+      <div class="agendar-grid">
+        <div class="agendar-text" data-reveal>
+          <p class="kicker">Agendamento</p>
+          <h2>Agende em <em>10 segundos</em></h2>
+          <p>Preencha o formulário ou toque no botão do WhatsApp. A confirmação chega na hora.</p>
+          <a class="btn btn-gold btn-electric whatsapp-btn" data-whatsapp>📱 Agendar pelo WhatsApp</a>
+          <p class="agendar-dica">Preferência por WhatsApp? É o jeito mais rápido de garantir seu horário.</p>
+        </div>
+        <form class="agendar-form" id="formAgendar" data-reveal novalidate>
+          <label>
+            <span>Serviço</span>
+            <select name="servico" id="selServico" required>
+              <option value="">Selecione...</option>
+              <option data-slots="1">Corte</option>
+              <option data-slots="1">Barba</option>
+              <option data-slots="1">Sobrancelha</option>
+              <option data-slots="1">Cavanhaque</option>
+              <option data-slots="2">Combo Corte + Barba</option>
+              <option data-slots="2">Pigmentação</option>
+              <option data-slots="2">Alisamento</option>
+            </select>
+            <small class="form-hint" id="hintServico"></small>
+          </label>
+          <label>
+            <span>Data</span>
+            <input type="date" name="data" id="campoData" required />
+          </label>
+          <div class="slot-picker">
+            <span class="slot-picker-label" id="slotLabel">Escolha um horário abaixo</span>
+            <div class="slot-btns" id="slotBotoes"></div>
+            <small class="form-hint" id="hintSlots"></small>
+          </div>
+          <input type="hidden" name="horario" id="campoHorario" />
+          <label>
+            <span>Seu nome</span>
+            <input type="text" name="nome" placeholder="Ex.: João Silva" required maxlength="80" />
+          </label>
+          <label>
+            <span>WhatsApp (com DDD)</span>
+            <input type="tel" name="whatsapp" placeholder="Ex.: 31999999999" required inputmode="numeric" />
+          </label>
+          <label>
+            <span>Observações (opcional)</span>
+            <input type="text" name="obs" placeholder="Ex.: quero o corte degrade" maxlength="300" />
+          </label>
+          <p class="form-hint">⚠️ Favor chegar com <b>10 min de antecedência</b> — Tolerância de 10 min — após isso, reagendamos sem custo. Nevou ou Reflexo? <a class="link" data-whatsapp>Fale com a gente</a> para agendar.</p>
+          <!-- Honeypot anti-bot (oculto) -->
+          <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <button type="submit" class="btn btn-gold btn-block">Confirmar agendamento</button>
+          <p class="form-msg" id="formMsg" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTATO -->
+  <section class="section section-dark bg-img" id="contato" style="background-image: linear-gradient(rgba(11,11,13,0.70), rgba(11,11,13,0.80)), url('/images/real/foto7.jpg');">
+    <div class="wrap">
+      <div class="contato-grid">
+        <div data-reveal>
+          <p class="kicker">Contato</p>
+          <h2>Onde <em>estamos</em></h2>
+          <ul class="contato-list">
+            <li>📍 R. Padre Rolim, 945 — São Cristóvão, Ouro Preto - MG · CEP 35400-000</li>
+            <li>📱 WhatsApp: <a data-whatsapp class="link">(31) 99781-6616</a></li>
+            <li>🕘 Ter–Sáb 08:40h–18h · Seg e Dom fechado</li>
+            <li>📸 Instagram: <a href="https://www.instagram.com/vitin01._/" target="_blank" rel="noopener noreferrer" class="link">@vitin01._</a></li>
+          </ul>
+        </div>
+        <form class="contato-form" id="formContato" data-reveal>
+          <h3>Fale conosco</h3>
+          <label><span>Nome</span><input type="text" name="nome" required maxlength="80" /></label>
+          <label><span>Telefone ou e-mail</span><input type="text" name="contato" required /></label>
+          <label><span>Mensagem</span><textarea name="mensagem" rows="4" required maxlength="600"></textarea></label>
+          <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <button type="submit" class="btn btn-gold btn-block">Enviar mensagem</button>
+          <p class="form-msg" id="contatoMsg" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ (carregada do painel) -->
+  <section class="section bg-img" id="faq" style="background-image: linear-gradient(rgba(11,11,13,0.70), rgba(11,11,13,0.80)), url('/images/real/foto6.jpg');">
+    <div class="wrap wrap-narrow">
+      <div class="section-head" data-reveal>
+        <p class="kicker">Dúvidas frequentes</p>
+        <h2>Perguntas <em>frequentes</em></h2>
+      </div>
+      <div class="faq" id="faqLista" data-reveal>
+        <p class="categorias-carregando">Carregando perguntas...</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-links">
+          <a href="#sobre">Sobre</a>
+          <a href="#servicos">Serviços</a>
+          <a href="#galeria">Galeria</a>
+          <a href="#faq">Dúvidas</a>
+        </div>
+        <div class="footer-links">
+          <a href="#agendar">Agendar</a>
+          <a href="#contato">Contato</a>
+          <a data-whatsapp>WhatsApp</a>
+        </div>
+        <div class="footer-icon-logo">
+          <img src="/images/logo-icon.png" alt="Art na Régua" />
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 Art na Régua. Todos os direitos reservados.</p>
+        <span class="footer-meta">
+          <a href="#" class="muted" id="lgpd">Política de Privacidade (LGPD)</a>
+          <a href="/admin/login.html" class="muted admin-link" title="Acesso restrito">🔒 Área do administrador</a>
+        </span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Modal LGPD -->
+  <div class="modal" id="lgpdModal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="lgpdTitle">
+      <button class="modal-close" id="lgpdClose" aria-label="Fechar">✕</button>
+      <h3 id="lgpdTitle">Política de Privacidade (LGPD)</h3>
+      <p>Os dados fornecidos (nome, WhatsApp e mensagem) são usados exclusivamente para agendar e confirmar seu atendimento. Não compartilhamos suas informações com terceiros.</p>
+      <p>Você pode solicitar a exclusão dos seus dados a qualquer momento falando com a gente pelo WhatsApp.</p>
+      <button class="btn btn-gold" id="lgpdOk">Entendi</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Lightbox da galeria (tela cheia com fotos da categoria) -->
+  <div class="lightbox" id="lightbox" hidden>
+    <div class="lightbox-top">
+      <h3 id="lightboxTitulo">Galeria</h3>
+      <button class="lightbox-fechar" id="lightboxFechar" aria-label="Fechar">✕</button>
+    </div>
+    <div class="lightbox-grid" id="lightboxGrid"></div>
+  </div>
+
+  <!-- Visualizador de foto única -->
+  <div class="foto-cheia" id="fotoCheia" hidden>
+    <button class="foto-cheia-fechar" id="fotoCheiaFechar" aria-label="Fechar">✕</button>
+    <img id="fotoCheiaImg" alt="Foto ampliada" />
+  </div>
+
+  <!-- Rádio funk (flutuante) -->
+  <div class="radio-player" id="radioPlayer">
+    <audio id="radioAudio" preload="none"></audio>
+    <button class="radio-mute" id="radioMute" type="button" title="Mudo" hidden>🔇</button>
+    <button class="radio-btn" id="radioBtn" type="button" title="Tocar funk">
+      <span class="radio-icon" id="radioIcon">🎵</span>
+    </button>
+  </div>
+
+  <!-- Botão flutuante WhatsApp -->
+  <a class="float-whats" data-whatsapp aria-label="Agendar pelo WhatsApp">
+    <svg viewBox="0 0 24 24" width="28" height="28" fill="#0b0b0d"><path d="M17.5 14.4c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.5 0 1.47 1.07 2.9 1.22 3.1.15.2 2.1 3.2 5.1 4.49.71.3 1.27.49 1.7.63.72.23 1.37.2 1.88.12.58-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35zM12.05 21.8h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26c0-5.45 4.44-9.88 9.9-9.88a9.83 9.83 0 019.89 9.89c0 5.45-4.44 9.88-9.9 9.88zm8.41-18.3A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.9 11.9 0 005.69 1.45h.01c6.55 0 11.88-5.34 11.88-11.9 0-3.18-1.24-6.16-3.48-8.4z"/></svg>
+  </a>
+
+  <script src="/js/main.js?v=14"></script>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BRB Pro — Site + Agenda + WhatsApp que lota sua barbearia | No ar em 48h</title>
+<meta name="description" content="BRB Pro transforma sua barbearia em máquina de agendamentos. Site premium + agenda online + WhatsApp automático + reativação de clientes. Demo: artnaregua.brbpro.com.br. A partir de R$79/mês."/>
+<meta property="og:title" content="BRB Pro — Sua barbearia lotada em 48h"/>
+<meta property="og:description" content="Site premium + agenda + WhatsApp + painel. Veja a demo Art na Régua e tenha o seu igual."/>
+<meta property="og:image" content="https://art-na-regua.onrender.com/images/og-image.jpg"/>
+<meta name="theme-color" content="#07080A"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#07080A;--card:#111316;--line:#23252B;--gold:#C9A86A;--gold2:#E8C99A;--text:#F2F0EC;--muted:#9BA0AE;--green:#1DB954}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+  .nav{position:sticky;top:0;z-index:30;background:rgba(7,8,10,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:14px 24px}
+  .logo{font-family:'Playfair Display',serif;font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .logo span{color:var(--gold);font-style:italic}
+  .logo small{font-family:'Manrope',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold2);display:block;margin-top:-2px}
+  .nav-cta{display:flex;gap:10px;align-items:center}
+  .btn{border-radius:999px;padding:12px 20px;font-weight:800;font-size:13px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;transition:.2s}
+  .btn-gold{background:linear-gradient(180deg,var(--gold2),var(--gold));color:#111;box-shadow:0 8px 24px rgba(201,168,106,.25)}
+  .btn-gold:hover{transform:translateY(-1px);box-shadow:0 12px 30px rgba(201,168,106,.35)}
+  .btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
+  .btn-ghost:hover{background:#111316}
+  .btn-block{width:100%;justify-content:center}
+  /* HERO */
+  .hero{padding:42px 0 28px;background:radial-gradient(900px 500px at 15% -10%,rgba(201,168,106,.18),transparent 60%),radial-gradient(700px 400px at 90% 0%,rgba(201,168,106,.10),transparent 60%),linear-gradient(180deg,#0B0B0D,#07080A)}
+  .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:32px;align-items:center}
+  .badge{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(201,168,106,.3);background:rgba(201,168,106,.10);color:var(--gold2);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;padding:8px 12px;border-radius:999px}
+  .hero h1{font-family:'Playfair Display',serif;font-size:52px;line-height:.92;letter-spacing:-.03em;margin:14px 0 14px}
+  .hero h1 em{color:var(--gold);font-style:italic}
+  .hero p.lead{color:#C8CBD2;font-size:17px;max-width:560px}
+  .hero-ctas{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap}
+  .trust{display:flex;gap:16px;margin-top:18px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .trust b{color:var(--text)}
+  .hero-card{background:var(--card);border:1px solid var(--line);border-radius:22px;overflow:hidden}
+  .hero-card-top{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .hero-card-top small{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:800}
+  .hero-preview{background:#0E0F12;padding:0;position:relative}
+  .hero-preview img{width:100%;height:320px;object-fit:cover;display:block;filter:saturate(1.05) contrast(1.05)}
+  .hero-preview::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(7,8,10,.55))}
+  .hero-preview-label{position:absolute;bottom:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;z-index:2}
+  .hero-preview-label span{background:rgba(0,0,0,.65);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);padding:8px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  .hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px;background:var(--card)}
+  .hero-stats div{border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;background:#0E0F12}
+  .hero-stats strong{display:block;font-size:18px;color:var(--gold2)}
+  .hero-stats span{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+  /* SECTIONS */
+  section{padding:42px 0;border-bottom:1px solid #121317}
+  h2{font-family:'Playfair Display',serif;font-size:36px;letter-spacing:-.02em;line-height:1}
+  h2 em{color:var(--gold);font-style:italic}
+  .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:800;margin-bottom:8px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px}
+  .check{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:rgba(29,185,84,.12);border:1px solid rgba(29,185,84,.25);color:#7EE0A0;font-size:14px;flex:0 0 28px}
+  .list{list-style:none;display:grid;gap:10px}
+  .list li{display:flex;gap:12px;align-items:flex-start}
+  /* COMPARATIVO */
+  .compare{border:1px solid var(--line);border-radius:18px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr}
+  .compare div{padding:18px}
+  .compare .bad{background:#0E0F12}
+  .compare .good{background:linear-gradient(180deg,rgba(201,168,106,.12),rgba(201,168,106,.03));border-left:1px solid var(--line)}
+  .compare h4{font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+  .compare li{font-size:13px;color:#C8CBD2;margin:6px 0;display:flex;gap:8px}
+  /* PLANOS */
+  .price{border:1px solid var(--line);border-radius:20px;padding:22px;background:#0E0F12;position:relative}
+  .price.popular{border-color:var(--gold);background:linear-gradient(180deg,rgba(201,168,106,.14),rgba(201,168,106,.04));transform:scale(1.02);box-shadow:0 12px 36px rgba(201,168,106,.18)}
+  .price .tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--gold);color:#111;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;padding:6px 10px;border-radius:999px}
+  .price h4{font-size:16px}
+  .price .value{font-size:36px;font-weight:800;color:var(--gold2);margin:6px 0}
+  .price .value small{font-size:13px;color:var(--muted)}
+  .price ul{list-style:none;display:grid;gap:8px;margin:14px 0}
+  .price li{font-size:13px;display:flex;gap:8px;color:#D6D8DE}
+  .price li i{color:var(--green)}
+  /* PASSO A PASSO */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .step{border:1px solid var(--line);border-radius:16px;padding:16px;background:#0E0F12;text-align:center}
+  .step span{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:#111;font-weight:800;margin:0 auto 10px}
+  /* FAQ */
+  details{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#0E0F12}
+  details+details{margin-top:10px}
+  summary{font-weight:800;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  summary::after{content:"+";font-size:18px;color:var(--gold)}
+  details[open] summary::after{content:"−"}
+  details p{margin-top:10px;color:#C8CBD2;font-size:13.5px}
+  /* FOOTER */
+  footer{padding:24px 0;color:var(--muted);font-size:12px;text-align:center}
+  @media(max-width:900px){.hero-grid,.grid2,.grid3,.compare,.steps{grid-template-columns:1fr}.hero h1{font-size:34px}.price.popular{transform:none}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="logo">BRB<span>Pro</span> <small>para barbearias</small></div>
+  <div class="nav-cta">
+    <a href="#demo" class="btn btn-ghost" style="padding:10px 14px">Ver demo</a>
+    <a href="#planos" class="btn btn-gold" style="padding:10px 16px">Quero meu site →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="badge">⚡ Novo — Vagas limitadas: 5 barbearias/mês</span>
+      <h1>Seu site <em>lota a cadeira</em> enquanto você corta</h1>
+      <p class="lead">Site premium + agenda online + WhatsApp automático + reativação de clientes inativos. <b>Igual ao da Art na Régua</b> — que já atende +1.000 clientes em Ouro Preto — mas com sua marca, suas cores, seu subdomínio.</p>
+      <div class="hero-ctas">
+        <a href="#planos" class="btn btn-gold">Quero meu site em 48h →</a>
+        <a href="https://art-na-regua.onrender.com/" target="_blank" class="btn btn-ghost">Ver demonstração real</a>
+      </div>
+      <div class="trust">
+        <span>✅ <b>No ar em 48h</b></span>
+        <span>✅ <b>Sem fidelidade</b></span>
+        <span>✅ <b>Suporte no WhatsApp</b></span>
+        <span>⭐ 4.9★ Art na Régua</span>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px">Dono da Art na Régua: “Saí do caderno para agenda lotada no WhatsApp.” — Vitin</p>
+    </div>
+
+    <div class="hero-card">
+      <div class="hero-card-top">
+        <small>● Demonstração ao vivo</small>
+        <small style="color:var(--muted)">artnaregua.brbpro.com.br</small>
+      </div>
+      <div class="hero-preview">
+        <img src="https://art-na-regua.onrender.com/images/real/hero-real.jpg" alt="Demo Art na Régua" onerror="this.style.background='#1a1a1a';this.style.display='block'"/>
+        <div class="hero-preview-label">
+          <span>💈 Corte R$35 · Barba R$25</span>
+          <span style="background:var(--gold);color:#111;border-color:transparent">Agendar agora →</span>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div><strong>+1.000</strong><span>clientes</span></div>
+        <div><strong>4.9★</strong><span>avaliação</span></div>
+        <div><strong>48h</strong><span>no ar</span></div>
+      </div>
+      <div style="padding:14px">
+        <a href="https://art-na-regua.onrender.com/" target="_blank" class="btn btn-gold btn-block">Abrir demo completa →</a>
+        <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Mesmo template que você vai receber, com sua logo e cores.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROBLEMA -->
+<section>
+  <div class="wrap">
+    <div class="kicker">O problema</div>
+    <h2>Instagram não é <em>agenda</em></h2>
+    <p style="color:#C8CBD2;max-width:700px;margin-top:8px">Você perde cliente todo dia: DM não respondida, caderno perdido, horário vago sem aviso, cliente que não volta e você nem lembra o nome.</p>
+
+    <div class="compare" style="margin-top:20px">
+      <div class="bad">
+        <h4 style="color:#FF9B9B">❌ Hoje (caderno + DM)</h4>
+        <ul style="list-style:none">
+          <li>✕ Cliente chama no Insta e você está cortando</li>
+          <li>✕ Horário vago terça 13h fica vazio</li>
+          <li>✕ Cliente some 60 dias e você perde R$35</li>
+          <li>✕ Sem site, Google não te acha</li>
+          <li>✕ Preço só no WhatsApp = desconfiança</li>
+        </ul>
+      </div>
+      <div class="good">
+        <h4 style="color:var(--gold2)">✅ Com BRB Pro</h4>
+        <ul style="list-style:none">
+          <li>✓ Site agenda sozinho 24h, cai no WhatsApp</li>
+          <li>✓ Disparo automático “encaixe hoje 13h com 15%”</li>
+          <li>✓ Reativação 30/45/60 dias traz de volta</li>
+          <li>✓ Google te acha: “barbearia perto de mim”</li>
+          <li>✓ Preço transparente, sem susto</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- O QUE VEM -->
+<section id="demo">
+  <div class="wrap">
+    <div class="kicker">O que você recebe</div>
+    <h2>Tudo que a Art na Régua já usa — <em>com sua marca</em></h2>
+    <div class="grid3" style="margin-top:18px">
+      <div class="card">
+        <div style="font-size:22px">🌐</div>
+        <b>Site premium no seu subdomínio</b>
+        <p style="font-size:13px;color:#C8CBD2;margin-top:6px"><b>seudominio.brbpro.com.br</b> — igual ao demo, com sua logo, cores, fotos, preços, endereço e Instagram. Responsivo, rápido, com SEO local.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:22px">📅</div>
+        <b>Agenda que não deixa furar</b>
+        <p style="font-size:13px;color:#C8CBD2;margin-top:6px">Cliente escolhe serviço, data e horário. Slots de 40min, combos ocupam 2 slots, fechado domingo/segunda automático.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:22px">📲</div>
+        <b>WhatsApp que fecha</b>
+        <p style="font-size:13px;color:#C8CBD2;margin-top:6px">Mensagem pré-pronta: “Quero Corte R$35 dia 22 às 10:40 — João”. Você só confirma. Com UTM para saber de onde veio.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:22px">👥</div>
+        <b>Painel do dono</b>
+        <p style="font-size:13px;color:#C8CBD2;margin-top:6px"><b>app.brbpro.com.br</b> — agenda, clientes, caixa, estoque, galeria, importação de agenda via WhatsApp.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:22px">🔁</div>
+        <b>Reativação automática</b>
+        <p style="font-size:13px;color:#C8CBD2;margin-top:6px">Lista de inativos 30/45/60 dias + botão “Enviar WhatsApp”. Recupere R$1.200/mês sem tráfego pago.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:22px">📺</div>
+        <b>Painel da TV</b>
+        <p style="font-size:13px;color:#C8CBD2;margin-top:6px">Mostra na TV da barbearia: próximos horários, fila, promo do dia. Cliente vê e já quer voltar.</p>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:18px">
+      <a href="https://art-na-regua.onrender.com/" target="_blank" class="btn btn-ghost">Ver demo Art na Régua ao vivo — art-na-regua.onrender.com →</a>
+    </div>
+  </div>
+</section>
+
+<!-- PLANOS -->
+<section id="planos" style="background:#0A0B0D">
+  <div class="wrap">
+    <div class="kicker" style="text-align:center">Planos</div>
+    <h2 style="text-align:center">Comece pequeno,<br/><em>escale quando lotar</em></h2>
+    <p style="text-align:center;color:var(--muted);margin-top:8px">Sem fidelidade. Cancele quando quiser. Setup único para deixar com sua cara.</p>
+
+    <div class="grid3" style="margin-top:22px">
+      <div class="price">
+        <h4>Essencial</h4>
+        <p style="font-size:12px;color:var(--muted)">Para sair do caderno</p>
+        <div class="value">R$79<small>/mês</small></div>
+        <ul>
+          <li><i>✓</i> Site no seu subdomínio</li>
+          <li><i>✓</i> Agenda online + WhatsApp</li>
+          <li><i>✓</i> Painel agenda/clientes</li>
+          <li><i>✓</i> Galeria + serviços</li>
+          <li style="opacity:.5"><i>—</i> Reativação automática</li>
+          <li style="opacity:.5"><i>—</i> Suporte prioritário</li>
+        </ul>
+        <a href="https://wa.me/5531997816616?text=Ol%C3%A1!%20Quero%20o%20BRB%20Pro%20Essencial%20(R$79)%20para%20minha%20barbearia.%20Meu%20nome%20%C3%A9:" target="_blank" class="btn btn-ghost btn-block">Quero Essencial</a>
+        <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Setup R$197</p>
+      </div>
+
+      <div class="price popular">
+        <span class="tag">★ Mais escolhido</span>
+        <h4>Pro</h4>
+        <p style="font-size:12px;color:var(--muted)">Para lotar a cadeira</p>
+        <div class="value">R$149<small>/mês</small></div>
+        <ul>
+          <li><i>✓</i> Tudo do Essencial</li>
+          <li><i>✓</i> <b>Reativação 30/45/60 dias</b></li>
+          <li><i>✓</i> Fidelidade “9º grátis”</li>
+          <li><i>✓</i> Importação de agenda via texto</li>
+          <li><i>✓</i> Painel da TV</li>
+          <li><i>✓</i> Suporte WhatsApp 24h</li>
+        </ul>
+        <a href="https://wa.me/5531997816616?text=Ol%C3%A1!%20Quero%20o%20BRB%20Pro%20PRO%20(R$149)%20para%20minha%20barbearia.%20Vi%20a%20demo%20Art%20na%20R%C3%A9gua%20e%20quero%20igual." target="_blank" class="btn btn-gold btn-block">Quero Pro — 48h no ar →</a>
+        <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Setup R$297 • 2 meses grátis no anual</p>
+      </div>
+
+      <div class="price">
+        <h4>Premium</h4>
+        <p style="font-size:12px;color:var(--muted)">Para virar referência</p>
+        <div class="value">R$249<small>/mês</small></div>
+        <ul>
+          <li><i>✓</i> Tudo do Pro</li>
+          <li><i>✓</i> Tráfego local Google/Instagram</li>
+          <li><i>✓</i> Fotos profissionais (guia)</li>
+          <li><i>✓</i> Domínio próprio (.com.br)</li>
+          <li><i>✓</i> Onboarding presencial (MG)</li>
+          <li><i>✓</i> Gestor dedicado</li>
+        </ul>
+        <a href="https://wa.me/5531997816616?text=Ol%C3%A1!%20Quero%20o%20BRB%20Pro%20Premium%20(R$249)%20para%20minha%20barbearia." target="_blank" class="btn btn-ghost btn-block">Quero Premium</a>
+        <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Setup R$497</p>
+      </div>
+    </div>
+
+    <div style="background:rgba(201,168,106,.08);border:1px solid rgba(201,168,106,.2);border-radius:14px;padding:14px;text-align:center;margin-top:18px">
+      <b style="color:var(--gold2)">Garantia:</b> Se em 7 dias você não amar, devolvemos 100%. Você fica com o template.
+    </div>
+  </div>
+</section>
+
+<!-- COMO FUNCIONA -->
+<section>
+  <div class="wrap">
+    <div class="kicker">Como funciona</div>
+    <h2>Do “quero” ao <em>no ar</em> em 4 passos</h2>
+    <div class="steps" style="margin-top:18px">
+      <div class="step"><span>1</span><b>Você chama</b><p style="font-size:12px;color:var(--muted)">WhatsApp com nome da barbearia + cidade</p></div>
+      <div class="step"><span>2</span><b>A gente clona</b><p style="font-size:12px;color:var(--muted)">Em 24h seu site em <b>seudominio.brbpro.com.br</b></p></div>
+      <div class="step"><span>3</span><b>Você aprova</b><p style="font-size:12px;color:var(--muted)">Troca logo, fotos, preços no painel</p></div>
+      <div class="step"><span>4</span><b>Lota</b><p style="font-size:12px;color:var(--muted)">Agenda online + disparo reativação</p></div>
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <a href="https://wa.me/5531997816616?text=Ol%C3%A1!%20Quero%20meu%20site%20BRB%20Pro%20no%20ar%20em%2048h.%20Barbearia:%20" target="_blank" class="btn btn-gold" style="font-size:15px;padding:16px 28px">💬 Chamar no WhatsApp agora →</a>
+      <p style="font-size:11px;color:var(--muted);margin-top:8px">Resposta em até 2h • Atendemos Ouro Preto, Mariana e todo Brasil</p>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section>
+  <div class="wrap" style="max-width:820px">
+    <div class="kicker" style="text-align:center">Dúvidas</div>
+    <h2 style="text-align:center">Perguntas <em>frequentes</em></h2>
+    <div style="margin-top:18px">
+      <details open><summary>Preciso ter domínio próprio?</summary><p>Não. Você ganha <b>seudominio.brbpro.com.br</b> grátis. Se quiser seu .com.br, configuramos no Premium sem custo extra.</p></details>
+      <details><summary>Funciona no meu celular?</summary><p>Sim. Site e painel são 100% responsivos. Você gerencia agenda, clientes e caixa pelo celular.</p></details>
+      <details><summary>E se eu já tenho agenda no caderno/WhatsApp?</summary><p>Tem importação mágica: cole o texto “Sexta 13:00 Costa” e o sistema agenda automaticamente para a semana.</p></details>
+      <details><summary>Posso mudar preços e fotos depois?</summary><p>Sim, no painel <b>app.brbpro.com.br</b> você edita serviços, preços, galeria e FAQ sem programador.</p></details>
+      <details><summary>Tem fidelidade?</summary><p>Não. Cancele quando quiser. Seus dados são seus — exportamos tudo.</p></details>
+      <details><summary>Quanto tempo para ficar no ar?</summary><p>48h após você enviar logo + 3 fotos + tabela de preços. Já deixamos no ar para você aprovar.</p></details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div style="font-family:'Playfair Display',serif;font-size:16px;color:var(--text)">BRB<span style="color:var(--gold)">Pro</span></div>
+    <p style="margin-top:6px">© 2026 BRB Pro • brbpro.com.br • app.brbpro.com.br • Feito para barbearias que querem lotar a cadeira.<br/>Demo oficial: <a href="https://art-na-regua.onrender.com/" style="color:var(--gold)">art-na-regua.onrender.com</a> → em breve artnaregua.brbpro.com.br • WhatsApp (31) 99781-6616 • Ouro Preto — MG</p>
+    <p style="margin-top:10px"><a href="#" style="color:var(--muted)">Privacidade</a> • <a href="#" style="color:var(--muted)">Termos</a> • <a href="https://art-na-regua.onrender.com/admin/login.html" style="color:var(--muted)">Área do dono</a></p>
+  </div>
+</footer>
+
+<script>
+// UTM preserva origem
+(function(){
+  const btns=document.querySelectorAll('a[href*="wa.me"]');
+  const utm=`&utm_source=brbpro&utm_medium=site&utm_campaign=landing`;
+  btns.forEach(b=>{
+    if(b.href.includes('wa.me') && !b.href.includes('utm_source')){
+      // só adiciona se já tem ?text=
+      if(b.href.includes('?text=')) b.href=b.href+encodeURIComponent(" ");
+    }
+  });
+})();
+</script>
+</body>
+</html>
