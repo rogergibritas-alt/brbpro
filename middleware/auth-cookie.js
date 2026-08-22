@@ -12,10 +12,21 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'troque-esta-chave-em-producao-com-32-chars';
+// Nunca usar chave padrão previsível: se JWT_SECRET não estiver definido,
+// gera uma aleatória (efêmera) — tokens ficam inválidos a cada restart,
+// mas jamais podem ser forjados por terceiros.
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(48).toString('hex');
+if (!process.env.JWT_SECRET) {
+  console.warn('AVISO: JWT_SECRET não definido. Sessões serão invalidadas a cada restart — defina no Render (openssl rand -hex 32).');
+}
 const JWT_EXPIRES = '15m';
 const REFRESH_EXPIRES = '7d';
+
+// Cookie marcado como Secure SEMPRE em produção; aqui evitamos depender de NODE_ENV,
+// pois no Render ele pode não estar setado e o cookie sairia em claro (fora de HTTPS).
+const IS_HTTPS = process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true' || (process.env.RENDER && process.env.NODE_ENV !== 'test');
 
 // Rate limit no login: 5 tentativas / 15 min / IP
 const loginLimiter = rateLimit({
@@ -35,7 +46,7 @@ function setAuthCookies(res, user) {
   const refresh = signToken({ id: user.id, type: 'refresh' }, REFRESH_EXPIRES);
 
   // Token curto — HttpOnly, Secure, SameSite=Lax
-  const isProd = process.env.NODE_ENV === 'production';
+  const isProd = IS_HTTPS;
   res.cookie('brb_token', token, {
     httpOnly: true,
     secure: isProd, // em dev http://localhost sem secure
