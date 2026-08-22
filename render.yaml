@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: brbpro
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_SENHA
+        value: vitinh@continue
+      - key: ORIGIN_FALLBACK
+        value: https://art-na-regua.onrender.com
+      - key: DATABASE_URL
+        sync: false
+    domains:
+      - brbpro.com.br
+      - www.brbpro.com.br
+      - app.brbpro.com.br
+      - "*.brbpro.com.br"

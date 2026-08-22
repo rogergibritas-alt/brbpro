@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestão — Art na Régua</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/admin/admin.css?v=14" />
+</head>
+<body>
+  <div class="admin">
+    <aside class="sidebar">
+      <div class="logo"><img src="/images/logo-icon.png" alt="" /> Art <b>na Régua</b></div>
+      <nav class="sidebar-nav">
+        <button class="nav-item ativo" data-tab="dashboard"><span class="ico">📊</span> Visão geral</button>
+        <button class="nav-item" data-tab="agenda"><span class="ico">📅</span> Agenda</button>
+        <button class="nav-item" data-tab="importar"><span class="ico">📥</span> Importar agenda</button>
+        <button class="nav-item" data-tab="clientes"><span class="ico">👥</span> Clientes</button>
+        <button class="nav-item" data-tab="caixa"><span class="ico">💰</span> Fluxo de caixa</button>
+        <button class="nav-item" data-tab="estoque"><span class="ico">📦</span> Estoque</button>
+        <button class="nav-item" data-tab="servicos"><span class="ico">💈</span> Serviços & preços</button>
+        <button class="nav-item" data-tab="galeria"><span class="ico">🖼️</span> Galeria</button>
+        <button class="nav-item" data-tab="faq"><span class="ico">❓</span> Dúvidas (FAQ)</button>
+        <button class="nav-item" data-tab="relatorio"><span class="ico">📈</span> Relatório</button>
+        <button class="nav-item" data-tab="auditoria"><span class="ico">🕵️</span> Auditoria</button>
+        <button class="nav-item" data-tab="config"><span class="ico">⚙️</span> Configurações</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <a class="link-site" href="/tv" target="_blank">📺 Painel da TV</a>
+        <a class="link-site" href="/" target="_blank">← ver o site</a>
+        <button class="nav-item sair" id="btnSair"><span class="ico">🚪</span> Sair</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <h2 id="titulo">Visão geral</h2>
+        <span class="hoje" id="hoje"></span>
+      </div>
+
+      <!-- DASHBOARD -->
+      <section id="tab-dashboard">
+        <div class="grid grid-4" id="stats"></div>
+        <div class="grid grid-2" style="margin-top:1rem;">
+          <div class="card">
+            <h3 style="margin-bottom:.8rem;">Agenda de hoje</h3>
+            <div id="dashAgenda"></div>
+          </div>
+          <div class="card">
+            <h3 style="margin-bottom:.8rem;">Estoque baixo</h3>
+            <div id="dashEstoque"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- IMPORTAR AGENDA -->
+      <section id="tab-importar" hidden>
+        <div class="card" style="margin-bottom:1rem;">
+          <h3 style="margin-bottom:.6rem;">Colar a agenda (modelo do WhatsApp)</h3>
+          <p style="font-size:.85rem;color:var(--muted);margin-bottom:.8rem;">
+            Cole o texto com os dias e horários (ex.: "Sexta" numa linha, depois "13:00 Costa" na outra).
+            O sistema identifica os nomes e marca automaticamente.<br/>
+            <b>Regra:</b> vale só para a <b>semana vigente</b>. Dias da semana que já passaram são ignorados.
+          </p>
+          <textarea id="importTexto" rows="14" style="width:100%;font-family:monospace;" placeholder="Cole aqui...&#10;&#10;Sexta&#10;13:00 Costa&#10;16:20 Luiz henrique&#10;&#10;Sábado&#10;08:40 piria&#10;09:20 Flávio Peixoto"></textarea>
+          <button class="btn btn-gold" id="importAnalisar" style="margin-top:.8rem;">🔍 Analisar</button>
+        </div>
+
+        <div class="card" id="importResultadoCard" style="display:none;">
+          <h3 style="margin-bottom:.6rem;">Prévia do que foi identificado</h3>
+          <p id="importResumo" style="font-size:.85rem;color:var(--muted);margin-bottom:.8rem;"></p>
+          <div id="importTabela" style="max-height:420px;overflow-y:auto;"></div>
+          <button class="btn btn-gold" id="importConfirmar" style="margin-top:1rem;">✅ Confirmar e agendar</button>
+        </div>
+      </section>
+
+      <!-- AGENDA -->
+      <section id="tab-agenda" hidden>
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="form-row">
+            <label class="field"><span>Data</span><input type="date" id="agendaData" /></label>
+            <label class="field"><span>Buscar cliente (opcional)</span>
+              <select id="agendaCliente"><option value="">— sem vínculo —</option></select>
+            </label>
+          </div>
+        </div>
+        <div class="card">
+          <p style="color:var(--muted);font-size:.85rem;margin-bottom:.8rem;">
+            ⏱️ Toque em um horário livre para agendar. Serviços de 2 horários (combo, pigmentação, alisamento) ocupam 2 slots seguidos automaticamente.
+          </p>
+          <div class="slot-grid" id="agendaSlots"></div>
+        </div>
+      </section>
+
+      <!-- CLIENTES -->
+      <section id="tab-clientes" hidden>
+        <div class="card" style="margin-bottom:1rem;">
+          <h3 style="margin-bottom:.8rem;">Novo cliente</h3>
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="field"><span>Nome</span><input type="text" id="clienteNome" placeholder="Nome completo" /></label>
+              <label class="field"><span>WhatsApp</span><input type="text" id="clienteZap" placeholder="(31) 99999-9999" /></label>
+            </div>
+            <label class="field"><span>Observações</span><input type="text" id="clienteObs" placeholder="Ex.: prefere degrade baixo" /></label>
+            <button class="btn btn-gold" id="clienteSalvar">Salvar cliente</button>
+          </div>
+        </div>
+        <div class="card"><div id="clientesLista"></div></div>
+      </section>
+
+      <!-- CAIXA -->
+      <section id="tab-caixa" hidden>
+        <div class="grid grid-3" id="caixaResumo" style="margin-bottom:1rem;"></div>
+        <div class="card" style="margin-bottom:1rem;">
+          <h3 style="margin-bottom:.8rem;">Novo lançamento</h3>
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="field"><span>Data</span><input type="date" id="caixaData" /></label>
+              <label class="field"><span>Tipo</span>
+                <select id="caixaTipo"><option value="entrada">Entrada (+)</option><option value="saida">Saída (−)</option></select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="field"><span>Categoria</span><input type="text" id="caixaCat" placeholder="Ex.: corte, produto, aluguel" /></label>
+              <label class="field"><span>Valor (R$)</span><input type="number" id="caixaValor" step="0.01" min="0" placeholder="0.00" /></label>
+            </div>
+            <label class="field"><span>Descrição</span><input type="text" id="caixaDesc" placeholder="Detalhe opcional" /></label>
+            <button class="btn btn-gold" id="caixaSalvar">Lançar</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="form-row" style="margin-bottom:1rem;">
+            <label class="field"><span>De</span><input type="date" id="caixaInicio" /></label>
+            <label class="field"><span>Até</span><input type="date" id="caixaFim" /></label>
+          </div>
+          <div id="caixaLista"></div>
+        </div>
+      </section>
+
+      <!-- ESTOQUE -->
+      <section id="tab-estoque" hidden>
+        <div class="card" style="margin-bottom:1rem;">
+          <h3 style="margin-bottom:.8rem;">Novo produto</h3>
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="field"><span>Produto</span><input type="text" id="estoqueProduto" placeholder="Ex.: Pomada modeladora" /></label>
+              <label class="field"><span>Quantidade</span><input type="number" id="estoqueQtd" min="0" value="0" /></label>
+            </div>
+            <div class="form-row">
+              <label class="field"><span>Mínimo (alerta)</span><input type="number" id="estoqueMin" min="0" value="0" /></label>
+              <label class="field"><span>Custo (R$)</span><input type="number" id="estoqueCusto" step="0.01" min="0" /></label>
+            </div>
+            <label class="field"><span>Preço de venda (R$)</span><input type="number" id="estoquePreco" step="0.01" min="0" /></label>
+            <button class="btn btn-gold" id="estoqueSalvar">Adicionar produto</button>
+          </div>
+        </div>
+        <div class="card"><div id="estoqueLista"></div></div>
+      </section>
+
+      <!-- SERVIÇOS -->
+      <section id="tab-servicos" hidden>
+        <div class="card" style="margin-bottom:1rem;">
+          <h3 style="margin-bottom:.8rem;">Novo serviço</h3>
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="field"><span>Nome do serviço</span><input type="text" id="svcNome" placeholder="Ex.: Freestyle" /></label>
+              <label class="field"><span>Preço (R$) — deixe vazio se for "sob consulta"</span><input type="number" id="svcPreco" step="0.01" min="0" /></label>
+            </div>
+            <div class="form-row">
+              <label class="field"><span>Horários que ocupa</span>
+                <select id="svcSlots"><option value="1">1 horário</option><option value="2">2 horários seguidos</option></select>
+              </label>
+              <label class="field"><span>Agendável pelo site?</span>
+                <select id="svcOnline"><option value="true">Sim</option><option value="false">Não (só por contato)</option></select>
+              </label>
+            </div>
+            <button class="btn btn-gold" id="svcSalvar">Adicionar serviço</button>
+          </div>
+        </div>
+        <div class="card"><div id="servicosLista"></div></div>
+      </section>
+
+      <!-- GALERIA -->
+      <section id="tab-galeria" hidden>
+        <div class="card" style="margin-bottom:1rem;">
+          <h3 style="margin-bottom:.8rem;">Publicar nova foto</h3>
+          <div class="form-grid">
+            <label class="field">
+              <span>Categoria (ex.: Trabalho, Corte, Acabamento, Barba...)</span>
+              <input type="text" id="fotoCategoria" list="categoriasExistentes" placeholder="Digite ou escolha uma categoria" />
+              <datalist id="categoriasExistentes"></datalist>
+            </label>
+            <label class="field">
+              <span>Escolher foto ou vídeo</span>
+              <input type="file" id="fotoArquivo" accept="image/*,video/*" />
+            </label>
+            <div id="fotoPreview" style="display:none;text-align:center;">
+              <img id="fotoPreviewImg" style="max-width:220px;max-height:220px;border-radius:10px;display:none;" alt="prévia" />
+              <video id="fotoPreviewVideo" style="max-width:220px;max-height:220px;border-radius:10px;display:none;" controls muted></video>
+              <p style="font-size:.75rem;color:var(--muted);margin-top:.4rem;" id="fotoPreviewInfo"></p>
+            </div>
+            <button class="btn btn-gold" id="fotoSalvar">Publicar foto</button>
+          </div>
+        </div>
+        <div class="card"><div id="fotosLista"></div></div>
+      </section>
+
+      <!-- FAQ -->
+      <section id="tab-faq" hidden>
+        <div class="card" style="margin-bottom:1rem;">
+          <h3 style="margin-bottom:.8rem;">Nova pergunta</h3>
+          <div class="form-grid">
+            <label class="field"><span>Pergunta</span><input type="text" id="faqPergunta" placeholder="Ex.: Quais formas de pagamento vocês aceitam?" /></label>
+            <label class="field"><span>Resposta</span><textarea id="faqResposta" rows="3" placeholder="Escreva a resposta"></textarea></label>
+            <button class="btn btn-gold" id="faqSalvar">Adicionar pergunta</button>
+          </div>
+        </div>
+        <div class="card"><div id="faqListaAdmin"></div></div>
+      </section>
+
+      <!-- RELATÓRIO -->
+      <section id="tab-relatorio" hidden>
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="form-row">
+            <label class="field"><span>Dia do relatório</span><input type="date" id="relData" /></label>
+            <button class="btn btn-gold" id="relGerar" style="align-self:flex-end;">Gerar relatório do dia</button>
+          </div>
+        </div>
+        <div class="grid grid-4" id="relStats" style="margin-bottom:1rem;"></div>
+        <div class="grid grid-2">
+          <div class="card"><h3 style="margin-bottom:.8rem;">Por forma de pagamento</h3><div id="relForma"></div></div>
+          <div class="card"><h3 style="margin-bottom:.8rem;">Por categoria</h3><div id="relCategoria"></div></div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:2rem 0;" />
+
+        <h3 style="margin-bottom:1rem;">📅 Relatório mensal</h3>
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="form-row">
+            <label class="field"><span>Mês</span><input type="month" id="relMes" /></label>
+            <button class="btn btn-gold" id="relMesGerar" style="align-self:flex-end;">Gerar relatório mensal</button>
+          </div>
+        </div>
+        <div class="grid grid-4" id="relMesStats" style="margin-bottom:1rem;"></div>
+        <div class="card"><div id="relMesTabela"></div></div>
+      </section>
+
+      <!-- AUDITORIA -->
+      <section id="tab-auditoria" hidden>
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="form-row">
+            <label class="field"><span>Filtrar por tipo</span>
+              <select id="audTipo">
+                <option value="">Todos</option>
+                <option value="login">Login</option>
+                <option value="agendamento">Agendamentos</option>
+                <option value="caixa">Caixa</option>
+                <option value="estoque">Estoque</option>
+                <option value="servico">Serviços</option>
+                <option value="cliente">Clientes</option>
+                <option value="galeria">Galeria</option>
+                <option value="faq">FAQ</option>
+                <option value="contato">Contato</option>
+                <option value="config">Configurações</option>
+              </select>
+            </label>
+            <button class="btn btn-gold" id="audGerar" style="align-self:flex-end;">Atualizar</button>
+          </div>
+        </div>
+        <div class="card"><div id="audLista"></div></div>
+      </section>
+
+      <!-- CONFIG -->
+      <section id="tab-config" hidden>
+        <div class="card" style="max-width:460px;">
+          <h3 style="margin-bottom:1rem;">Trocar senha</h3>
+          <div class="form-grid">
+            <label class="field"><span>Senha atual</span><input type="password" id="cfgAtual" /></label>
+            <label class="field"><span>Nova senha</span><input type="password" id="cfgNova" /></label>
+            <label class="field"><span>Confirmar nova senha</span><input type="password" id="cfgNova2" /></label>
+            <button class="btn btn-gold" id="cfgSalvar">Alterar senha</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal genérico -->
+  <div class="modal-bg" id="modalBg" hidden>
+    <div class="modal" id="modalBox"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/admin/admin.js?v=13"></script>
+</body>
+</html>

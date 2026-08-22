@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Área de Gestão — Art na Régua</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/admin/admin.css?v=9" />
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo"><img src="/images/logo-icon.png" alt="Art na Régua" /></div>
+      <h1>Art na Régua</h1>
+      <p class="sub">Área de gestão — acesso restrito</p>
+      <form id="formLogin">
+        <label>
+          <span>Senha</span>
+          <input type="password" name="senha" placeholder="Digite sua senha" autocomplete="current-password" required autofocus />
+        </label>
+        <button type="submit" class="btn btn-gold btn-block">Entrar</button>
+        <p class="msg" id="msg"></p>
+      </form>
+      <a class="login-voltar" href="/">← Voltar ao site</a>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var form = document.getElementById('formLogin');
+      var msg = document.getElementById('msg');
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        msg.textContent = 'Entrando...';
+        msg.className = 'msg';
+        try {
+          var r = await fetch('/api/admin/login', { credentials: 'include',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ senha: form.senha.value })
+          });
+          var j = await r.json();
+          if (j.ok) {
+            localStorage.setItem('art_token', j.token);
+            localStorage.setItem('art_nome', j.nome || '');
+            window.location.href = '/admin/';
+          } else {
+            msg.textContent = j.error || 'Erro ao entrar.';
+            msg.className = 'msg erro';
+          }
+        } catch (err) {
+          msg.textContent = 'Erro de conexão. Tente novamente.';
+          msg.className = 'msg erro';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
