@@ -13,7 +13,8 @@
     els.forEach(function (el) { el.classList.add('vis'); });
   }
 
-  // Contador animado (prova imediata)
+  // Contador animado (prova imediata) — o HTML já traz o valor final ("+1.000");
+  // a animação só roda se o elemento ENTRAR na viewport após o load (evita capturar "0" em snapshots)
   var counters = document.querySelectorAll('[data-count]');
   function animar(el) {
     var alvo = parseInt(el.getAttribute('data-count'), 10) || 0;
@@ -25,18 +26,22 @@
       var v = Math.floor(alvo * (1 - Math.pow(1 - p, 3)));
       el.textContent = prefixo + v.toLocaleString('pt-BR');
       if (p < 1) requestAnimationFrame(passo);
+      else el.textContent = prefixo + alvo.toLocaleString('pt-BR');
     }
     requestAnimationFrame(passo);
   }
   if ('IntersectionObserver' in window && counters.length) {
-    var io2 = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting) { animar(e.target); io2.unobserve(e.target); }
-      });
-    }, { threshold: 0.5 });
-    counters.forEach(function (el) { io2.observe(el); });
-  } else {
-    counters.forEach(function (el) { el.textContent = (el.getAttribute('data-prefix') || '') + parseInt(el.getAttribute('data-count'), 10).toLocaleString('pt-BR'); });
+    counters.forEach(function (el) {
+      var r = el.getBoundingClientRect();
+      // já visível no load? mantém o valor final estático (sem animação)
+      if (r.top < window.innerHeight && r.bottom > 0) return;
+      var io2 = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) { animar(e.target); io2.disconnect(); }
+        });
+      }, { threshold: 0.4 });
+      io2.observe(el);
+    });
   }
 
   // CTA fixo no mobile após passar do hero
