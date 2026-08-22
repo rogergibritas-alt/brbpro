@@ -55,30 +55,40 @@ function semBanco(res) { return res.status(503).json({ ok: false, error: 'Banco 
 /* ============================ MIDDLEWARES ============================ */
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
+
+// Nonce por requisição: permite CSP SEM 'unsafe-inline' (scripts inline só com nonce)
+app.use((req, res, next) => {
+  req.cspNonce = crypto.randomBytes(16).toString('base64');
+  next();
+});
 app.use(helmet({
-  contentSecurityPolicy: {
-    useDefaults: true,
-    directives: {
-      'default-src': ["'self'"],
-      'script-src': ["'self'", "'unsafe-inline'"],
-      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      'font-src': ["'self'", 'https://fonts.gstatic.com'],
-      'img-src': ["'self'", 'data:', 'https:'],
-      'media-src': ["'self'", 'https:', 'blob:'],
-      'connect-src': ["'self'", 'https:', 'http:'],
-      'worker-src': ["'self'", 'blob:'],
-      'object-src': ["'none'"],
-      'frame-ancestors': ["'self'"],
-      'base-uri': ["'self'"],
-      'form-action': ["'self'"],
-    },
-  },
+  contentSecurityPolicy: false, // CSP aplicada abaixo, com nonce por requisição
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   crossOriginEmbedderPolicy: false,
+  permissionsPolicy: { policy: { camera: [], geolocation: [], microphone: [], payment: [], usb: [] } },
 }));
+// CSP SEM 'unsafe-inline': scripts inline só com o nonce da requisição (anti-XSS)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  const n = req.cspNonce;
+  res.setHeader('Content-Security-Policy',
+    `default-src 'self';script-src 'self' 'nonce-${n}';style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;` +
+    `font-src 'self' https://fonts.gstatic.com;img-src 'self' data: https:;media-src 'self' https: blob:;` +
+    `connect-src 'self' https:;worker-src 'self' blob:;object-src 'none';frame-ancestors 'self';base-uri 'self';form-action 'self';script-src-attr 'none'`);
+  next();
+});
 app.use(cookieParser());
-app.use(express.json({ limit: '12mb' }));
+app.use(express.json({ limit: '28mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// robots.txt — protege painel e API do index
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send('User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api\n');
+});
+// security.txt — padrão de divulgação de vulnerabilidades
+app.get('/security.txt', (req, res) => {
+  res.type('text/plain').send('Contact: mailto:seguranca@brbpro.com.br\nExpires: 2027-08-22T00:00:00.000Z\nPolicy: https://brbpro.com.br/privacidade.html\nCanonical: https://brbpro.com.br/security.txt\n');
+});
 
 // CORS restrito ao próprio domínio
 app.use((req, res, next) => {
@@ -225,11 +235,17 @@ async function registrarLog(req, tipo, acao, detalhe) {
 function signToken(payload, exp = JWT_EXPIRES) { return jwt.sign(payload, JWT_SECRET, { expiresIn: exp }); }
 function setAuthCookies(res, user) {
   const tok = signToken({ id: user.id, tenantId: user.tenant_id, role: user.role, email: user.email, nome: user.nome });
-  res.cookie('brb_token', tok, { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 30 * 60 * 1000 });
+  const domain = COOKIE_SECURE ? { domain: 'brbpro.com.br' } : {}; // sessão vale para todos os subdomínios
+  res.cookie('brb_token', tok, { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 30 * 60 * 1000, ...domain });
   res.cookie('brb_refresh', signToken({ id: user.id, type: 'refresh' }, REFRESH_EXPIRES),
-    { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 7 * 24 * 3600 * 1000 });
+    { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 7 * 24 * 3600 * 1000, ...domain });
 }
-function clearAuthCookies(res) { res.clearCookie('brb_token', { path: '/' }); res.clearCookie('brb_refresh', { path: '/' }); }
+function clearAuthCookies(res) {
+  const domain = COOKIE_SECURE ? { domain: 'brbpro.com.br' } : {};
+  res.clearCookie('brb_token', { path: '/', ...domain }); res.clearCookie('brb_refresh', { path: '/', ...domain });
+}
+// Hash "fantasma" gerado no boot: mantém o tempo de resposta igual mesmo quando o e-mail não existe (anti-enumeração de usuários)
+const HASH_FANTASMA = bcrypt.hashSync(crypto.randomBytes(8).toString('hex'), 12);
 function requireAuth(req, res, next) {
   const token = req.cookies && req.cookies['brb_token'];
   if (!token) return res.status(401).json({ ok: false, error: 'Não autorizado. Faça login novamente.' });
@@ -384,7 +400,10 @@ app.post('/api/contato', rlGeral, async (req, res) => {
 app.get('/api/fotos/categorias', rlGeral, async (req, res) => {
   if (!pool) return semBanco(res);
   if (!req.tenantId) return res.status(400).json({ ok: false, error: 'Barbearia não identificada.' });
-  const r = await pool.query('SELECT categoria, COUNT(*)::int AS qtd, MAX(id) AS capa_id FROM fotos WHERE tenant_id=$1 GROUP BY categoria ORDER BY categoria', [req.tenantId]);
+  // capa = id da foto mais recente da categoria (MAX não existe para UUID)
+  const r = await pool.query(
+    "SELECT categoria, COUNT(*)::int AS qtd, (ARRAY_AGG(id ORDER BY criado_em DESC, id DESC))[1] AS capa_id FROM fotos WHERE tenant_id=$1 GROUP BY categoria ORDER BY categoria",
+    [req.tenantId]);
   res.json({ ok: true, categorias: r.rows });
 });
 app.get('/api/fotos', rlGeral, async (req, res) => {
@@ -430,25 +449,29 @@ app.post('/api/admin/login', rlLogin, async (req, res) => {
   if (!email || !senha) return res.status(400).json({ ok: false, error: 'Informe e-mail e senha.' });
   let user = null;
   // master: login via app.brbpro.com.br (sem tenant) → busca usuario master
-  if (req.isApp || req.userRoleCheck) {
+  if (req.isApp) {
     const r = await pool.query('SELECT * FROM users WHERE email=$1 AND role=$2', [email, 'master']);
     user = r.rows[0] || null;
   }
   if (!user) {
-    const tid = req.tenantId || (await pool.query("SELECT id FROM barbershops WHERE slug='artnaregua'")).rows?.[0]?.id;
-    // aceita email+tenant, OU se acessar um subdomínio usa o tenant do subdomínio
+    // aceita email+tenant; se acessar um subdomínio usa o tenant do subdomínio
     if (req.tenantId) {
       const r = await pool.query('SELECT * FROM users WHERE email=$1 AND tenant_id=$2', [email, req.tenantId]);
       user = r.rows[0] || null;
     }
-    // fallback: busca por email global (permite master logar de qualquer lugar) — só se for master
+    // fallback: busca por email global (permite master logar de qualquer lugar) — só se for master ou dono do tenant atual
     if (!user) {
       const r = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
       const cand = r.rows[0] || null;
       if (cand && (cand.role === 'master' || (req.tenantId && cand.tenant_id === req.tenantId))) user = cand;
     }
   }
-  if (!user) return res.status(401).json({ ok: false, error: 'Credenciais inválidas.' });
+  if (!user) {
+    // tempo de resposta constante mesmo com e-mail inexistente (anti-enumeração/enumeração de timing)
+    verificarHash(senha, HASH_FANTASMA);
+    registrarLog(req, 'login', 'falha_email', `Tentativa com ${email}`);
+    return res.status(401).json({ ok: false, error: 'Credenciais inválidas.' });
+  }
   if (!user.ativo) return res.status(401).json({ ok: false, error: 'Usuário desativado.' });
   if (!verificarHash(senha, user.senha_hash)) {
     registrarLog(req, 'login', 'falha', `Tentativa com ${email}`);
@@ -835,13 +858,22 @@ function serveTenantSite(req, res) {
   if (!fs.existsSync(p)) return res.status(404).send(build404(''));
   let html = fs.readFileSync(p, 'utf8');
   const t = req.tenant;
+  const nonce = req.cspNonce;
   const nome = t.nome || 'Barbearia';
   const cidade = t.cidade ? ' em ' + t.cidade : '';
+  const fwd = req.headers['x-forwarded-host'] || req.hostname || '';
+  const hostAtual = String(fwd).split(':')[0].toLowerCase();
+  const origem = hostAtual ? `https://${hostAtual}` : `https://${t.slug}.brbpro.com.br`;
+  const ogImagem = `${origem}/images/og-image.jpg`;
   const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: t.cor_primaria || '#C9A86A', slug: t.slug });
   // Título e meta dinâmicos por tenant (SEO / aba do navegador / compartilhamento)
   const titulo = `${nome} — Barbearia${cidade} | Corte, Barba e Estilo`;
   html = html.replace(/<title>.*?<\/title>/i, `<title>${esc(titulo)}</title>`);
   html = html.replace(/(<meta name="description" content=")[^"]*(")/i, `$1${esc(titulo + '. Agende pelo WhatsApp (' + (t.whatsapp || '') + ').')}$2`);
+  html = html.replace(/(<link rel="canonical" href=")[^"]*(")/i, `$1${origem}/$2`);
+  html = html.replace(/(<meta property="og:url" content=")[^"]*(")/i, `$1${origem}/$2`);
+  html = html.replace(/(<meta property="og:image" content=")[^"]*(")/i, `$1${ogImagem}$2`);
+  html = html.replace(/(<meta name="twitter:image" content=")[^"]*(")/i, `$1${ogImagem}$2`);
   html = html.replace(/(<meta property="og:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
   html = html.replace(/(<meta property="og:site_name" content=")[^"]*(")/i, `$1${esc(nome)}$2`);
   html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
@@ -849,16 +881,20 @@ function serveTenantSite(req, res) {
   html = html.replace(/(<h1 class="hero-title"[^>]*>)[\s\S]*?(<\/h1>)/i, `$1<span id="brandNome">${esc(nome)}</span>$2`);
   html = html.replace(/© 2026 Art na Régua\./gi, `© 2026 ${esc(nome)}.`);
   html = html.replace('<title></title>', `<title>${esc(titulo)}</title>`);
-  html = html.replace('</head>', `<script>window.BRB_TENANT=${cfg};</script></head>`);
+  // CSP sem 'unsafe-inline': todos os <script> recebem o nonce da requisição
+  html = html.replace(/<script(?=[\s>])/g, `<script nonce="${nonce}"`);
+  html = html.replace('</head>', `<script nonce="${nonce}">window.BRB_TENANT=${cfg};</script></head>`);
   res.setHeader('Content-Type', 'text/html; charset=UTF-8');
   res.setHeader('Cache-Control', 'no-cache');
   res.send(html);
 }
 
-// Estáticos (css/js/images)
-app.use('/css', express.static(path.join(__dirname, 'public/css'), { maxAge: '1h' }));
-app.use('/js', express.static(path.join(__dirname, 'public/js'), { maxAge: '1h' }));
-app.use('/images', express.static(path.join(__dirname, 'public/images'), { maxAge: '1h' }));
+// Estáticos (css/js/images/video)
+const PUBLIC_DIR = path.join(__dirname, 'public');
+app.use('/css', express.static(path.join(PUBLIC_DIR, 'css'), { maxAge: '1d' }));
+app.use('/js', express.static(path.join(PUBLIC_DIR, 'js'), { maxAge: '1d' }));
+app.use('/images', express.static(path.join(PUBLIC_DIR, 'images'), { maxAge: '3d' }));
+app.use('/video', express.static(path.join(PUBLIC_DIR, 'video'), { maxAge: '7d' }));
 
 app.get('/', (req, res) => {
   if (req.isApp) {
@@ -880,10 +916,18 @@ app.get('/', (req, res) => {
 // Painel admin (login.html e index.html pagos estáticos)
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 
-// Fallback: qualquer .html do tenant
+// Fallback: arquivos estáticos do tenant — SEMPRE dentro de public/ (anti path-traversal)
+function arquivoPublicoSeguro(req) {
+  try {
+    const p = path.normalize(path.join(PUBLIC_DIR, req.path.replace(/^\/+/, '')));
+    if (!p.startsWith(PUBLIC_DIR + path.sep)) return null;
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
+    return null;
+  } catch { return null; }
+}
 app.get('*', (req, res) => {
-  const p = path.join(__dirname, 'public', req.path.replace(/^\//, ''));
-  if (fs.existsSync(p) && fs.statSync(p).isFile()) return res.sendFile(p);
+  const p = arquivoPublicoSeguro(req);
+  if (p) return res.sendFile(p);
   if (req.tenant) return serveTenantSite(req, res);
   res.status(404).send(build404(''));
 });
@@ -893,6 +937,17 @@ app.use((req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ ok: false, error: 'Rota não encontrada.' });
   if (req.tenant) return serveTenantSite(req, res);
   res.status(404).send(build404(''));
+});
+
+/* ============================ BLINDAGEM GLOBAL (um erro de 1 request não derruba o processo) ============================ */
+process.on('unhandledRejection', (e) => console.error('[unhandledRejection]', e && e.message ? e.message : e));
+process.on('uncaughtException', (e) => console.error('[uncaughtException]', e && e.message ? e.message : e));
+// Middleware de erro final (Express 4 não captura erros de rotas async)
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  console.error('[erro]', req.method, req.path, err && err.message ? err.message : err);
+  if (req.path.startsWith('/api/')) return res.status(500).json({ ok: false, error: 'Erro interno.' });
+  res.status(500).send('<html style="font-family:system-ui;background:#07080A;color:#F2F0EC;text-align:center;padding:60px"><h1 style="color:#C9A86A">Erro interno</h1><p>Tente novamente em instantes.</p></html>');
 });
 
 app.listen(PORT, '0.0.0.0', () => {
