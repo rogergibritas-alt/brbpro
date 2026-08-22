@@ -141,8 +141,19 @@ async function lookupTenant(slug) {
 }
 async function tenantResolver(req, res, next) {
   try {
+    // Preview/segurança: permite forçar um tenant via ?tenant=slug (para demonstrar o produto)
+    const qTenant = req.query && req.query.tenant ? String(req.query.tenant).toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
     const fwd = req.headers['x-forwarded-host'] || req.headers['x-brb-original-host'] || '';
     const host = (String(fwd).split(':')[0] || req.hostname || req.headers.host || '').toLowerCase();
+    if (qTenant && qTenant !== 'app' && qTenant !== 'www' && !RESERVED.has(qTenant)) {
+      const tenant = await lookupTenant(qTenant);
+      if (tenant) {
+        req.tenant = tenant; req.tenantId = tenant.id; req.tenantSlug = tenant.slug;
+        req.isLanding = false; req.isApp = false;
+        res.setHeader('X-BRB-Tenant', tenant.slug);
+        return next();
+      }
+    }
     // a partir do host decide landing/app/tenant
     if (host === 'brbpro.com.br' || host === 'www.brbpro.com.br' || host === 'localhost' || host === '127.0.0.1' || host.endsWith('.e2b.app') || host.endsWith('.e2b.dev') || host.endsWith('.onrender.com')) {
       req.tenantId = null; req.tenantSlug = null; req.tenant = null;
@@ -823,7 +834,21 @@ function serveTenantSite(req, res) {
   const p = path.join(__dirname, 'public', 'index.html');
   if (!fs.existsSync(p)) return res.status(404).send(build404(''));
   let html = fs.readFileSync(p, 'utf8');
-  const cfg = JSON.stringify({ nome: req.tenant.nome, whatsapp: req.tenant.whatsapp, instagram: req.tenant.instagram, endereco: req.tenant.endereco, cidade: req.tenant.cidade, estado: req.tenant.estado, horario: req.tenant.horario, tema: req.tenant.tema, cor_primaria: req.tenant.cor_primaria || '#C9A86A', slug: req.tenant.slug });
+  const t = req.tenant;
+  const nome = t.nome || 'Barbearia';
+  const cidade = t.cidade ? ' em ' + t.cidade : '';
+  const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: t.cor_primaria || '#C9A86A', slug: t.slug });
+  // Título e meta dinâmicos por tenant (SEO / aba do navegador / compartilhamento)
+  const titulo = `${nome} — Barbearia${cidade} | Corte, Barba e Estilo`;
+  html = html.replace(/<title>.*?<\/title>/i, `<title>${esc(titulo)}</title>`);
+  html = html.replace(/(<meta name="description" content=")[^"]*(")/i, `$1${esc(titulo + '. Agende pelo WhatsApp (' + (t.whatsapp || '') + ').')}$2`);
+  html = html.replace(/(<meta property="og:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
+  html = html.replace(/(<meta property="og:site_name" content=")[^"]*(")/i, `$1${esc(nome)}$2`);
+  html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
+  // Marca visível no H1/hero e no rodapé
+  html = html.replace(/(<h1 class="hero-title"[^>]*>)[\s\S]*?(<\/h1>)/i, `$1<span id="brandNome">${esc(nome)}</span>$2`);
+  html = html.replace(/© 2026 Art na Régua\./gi, `© 2026 ${esc(nome)}.`);
+  html = html.replace('<title></title>', `<title>${esc(titulo)}</title>`);
   html = html.replace('</head>', `<script>window.BRB_TENANT=${cfg};</script></head>`);
   res.setHeader('Content-Type', 'text/html; charset=UTF-8');
   res.setHeader('Cache-Control', 'no-cache');
