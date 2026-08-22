@@ -153,12 +153,49 @@
     setInterval(atualizarRelogio, 1000);
   }
 
-  /* ---------- CONFIG ---------- */
+  /* ---------- CONFIG (multi-tenant, vem do window.BRB_TENANT injetado pelo servidor) ---------- */
+  // Fallback para quando não há tenant (ex.: preview local da landing vazia)
+  var T = (window.BRB_TENANT || {});
   var CONFIG = {
-    WHATSAPP: '5531997816616',
-    MSG_AGENDAR: 'Olá! Vim pelo site da Art na Régua e quero agendar um horário. ✂️',
-    MSG_CONTATO: 'Olá! Vim pelo site e quero falar com vocês.',
+    WHATSAPP: (T.whatsapp || '5531997816616'),
+    NOME: (T.nome || 'Barbearia'),
+    MSG_AGENDAR: 'Olá! Vim pelo site da ' + (T.nome || 'barbearia') + ' e quero agendar um horário. ✂️',
+    MSG_CONTATO: 'Olá! Vim pelo site da ' + (T.nome || 'barbearia') + ' e quero falar com vocês.',
   };
+
+  // Aplica a marca do tenant nos elementos visíveis (nome/cidade/social/endereço)
+  (function aplicarMarcaTenant() {
+    if (!T.nome) return;
+    var map = { '#brandNome': T.nome, '#brandCidade': (T.cidade || ''), '#brandEndereco': (T.endereco || ''), '#brandInstagram': (T.instagram || ''), '#brandWhatsapp': (T.whatsapp || '') };
+    Object.keys(map).forEach(function (sel) {
+      var el = document.querySelector(sel);
+      if (el && map[sel]) el.textContent = map[sel];
+    });
+    // Troca a palavra "Art na Régua" no texto por segurança (se ainda restar algo)
+    try {
+      document.querySelectorAll('body *').forEach(function (n) {
+        if (n.children.length === 0 && /\bArt na R.égua\b/i.test(n.textContent || '')) {
+          n.textContent = n.textContent.replace(/\bArt na R.égua\b/gi, T.nome || 'Barbearia');
+        }
+      });
+    } catch (e) {}
+  })();
+
+  // Se o servidor injetou o tenant, busca a config dinâmica (horário/social) para preencher o que faltar
+  if (!T.endereco) {
+    fetch('/api/config').then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.ok && j.barbearia) {
+        var b = j.barbearia;
+        var set = function (sel, v) { var el = document.querySelector(sel); if (el && v) el.textContent = v; };
+        set('#brandNome', b.nome || ''); set('#brandCidade', b.cidade || '');
+        set('#brandEndereco', b.endereco || ''); set('#brandInstagram', b.instagram || '');
+        set('#brandWhatsapp', b.whatsapp || '');
+        document.querySelectorAll('[data-whatsapp]').forEach(function (el) {
+          el.setAttribute('href', 'https://wa.me/' + (b.whatsapp || CONFIG.WHATSAPP) + '?text=' + encodeURIComponent(CONFIG.MSG_AGENDAR));
+        });
+      }
+    }).catch(function () {});
+  }
 
   function waLink(msg) {
     return 'https://wa.me/' + CONFIG.WHATSAPP + '?text=' + encodeURIComponent(msg);

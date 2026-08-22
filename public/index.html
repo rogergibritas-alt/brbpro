@@ -54,6 +54,20 @@
     ]
   }
   </script>
+  <script>
+    // BRB Pro — aplica a marca da barbearia (tenant) ao site
+    (function(){
+      var T = window.BRB_TENANT || {};
+      if (!T.nome) return;
+      var titulo = (T.nome || 'Barbearia') + (T.cidade ? ' — Barbearia em ' + T.cidade : '');
+      document.title = titulo + ' | Site, Agenda e WhatsApp';
+      var setk = function(k,v){ var m=document.querySelector('meta[name="'+k+'"]'); if(m && v) m.setAttribute('content', v); };
+      setk('description', titulo + '. Agende pelo WhatsApp (' + (T.whatsapp||'') + ').');
+      setk('og:title', titulo); setk('og:site_name', T.nome);
+      setk('twitter:title', titulo);
+      document.querySelectorAll('[data-brand-nome]').forEach(function(el){ el.textContent = T.nome; });
+    })();
+  </script>
 </head>
 <body>
   <!-- INTRO EM VÍDEO (toca automaticamente e some ao terminar) -->
@@ -99,7 +113,7 @@
     <div class="hero-overlay"></div>
     <div class="hero-content">
       <p class="hero-kicker" data-reveal>Barbearia em Ouro Preto — MG</p>
-      <h1 class="hero-title" id="smokyTitle">Art na Régua</h1>
+      <h1 class="hero-title" id="smokyTitle"><span id="brandNome">Art na Régua</span></h1>
       <p class="hero-sub" data-reveal>
         <span class="typed" data-words='["Corte.","Barba.","Sobrancelha.","Estilo."]'></span>
       </p>
@@ -336,10 +350,10 @@
           <p class="kicker">Contato</p>
           <h2>Onde <em>estamos</em></h2>
           <ul class="contato-list">
-            <li>📍 R. Padre Rolim, 945 — São Cristóvão, Ouro Preto - MG · CEP 35400-000</li>
-            <li>📱 WhatsApp: <a data-whatsapp class="link">(31) 99781-6616</a></li>
+            <li id="brandEndereco">📍 R. Padre Rolim, 945 — São Cristóvão, Ouro Preto - MG · CEP 35400-000</li>
+            <li id="brandWhatsapp">📱 WhatsApp: <a data-whatsapp class="link">(31) 99781-6616</a></li>
             <li>🕘 Ter–Sáb 08:40h–18h · Seg e Dom fechado</li>
-            <li>📸 Instagram: <a href="https://www.instagram.com/vitin01._/" target="_blank" rel="noopener noreferrer" class="link">@vitin01._</a></li>
+            <li>📸 Instagram: <a id="brandInstagram" href="https://www.instagram.com/vitin01._/" target="_blank" rel="noopener noreferrer" class="link">@vitin01._</a></li>
           </ul>
         </div>
         <form class="contato-form" id="formContato" data-reveal>
