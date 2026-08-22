@@ -180,8 +180,10 @@
       if (!el) return;
       if (!j.ok) { el.innerHTML = '<p style="color:var(--muted);font-size:.85rem;">' + esc(j.error || 'Erro ao carregar.') + '</p>'; return; }
       if (!j.previews.length) { el.innerHTML = '<p style="color:var(--muted);font-size:.85rem;">Nenhuma prévia ainda. Crie a primeira acima.</p>'; return; }
+      var ativas = j.previews.filter(function (p) { return p.ativa !== false; });
+      if (!ativas.length) { el.innerHTML = '<p style="color:var(--muted);font-size:.85rem;">Nenhuma prévia ativa. Crie a primeira acima.</p>'; return; }
       var html = '<table class="tabela"><tr><th>Link</th><th>Cidade</th><th>Visitas</th><th>CTAs</th><th>Criada</th><th></th></tr>';
-      j.previews.forEach(function (p) {
+      ativas.forEach(function (p) {
         var url = 'https://brbpro.com.br/' + p.slug;
         var data = new Date(p.criada_em).toLocaleDateString('pt-BR');
         html += '<tr>' +

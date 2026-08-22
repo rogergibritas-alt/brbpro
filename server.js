@@ -1048,7 +1048,7 @@ app.post('/api/preview/:slug/cta', rlGeral, async (req, res) => {
 app.get('/api/master/previews', requireAuth, async (req, res) => {
   if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
   if (!pool) return semBanco(res);
-  const r = await pool.query('SELECT id, slug, nome, cidade, visitas, ctas, ativa, criada_em FROM previews ORDER BY criada_em DESC LIMIT 100');
+  const r = await pool.query('SELECT id, slug, nome, cidade, visitas, ctas, ativa, criada_em FROM previews WHERE ativa=TRUE ORDER BY criada_em DESC LIMIT 100');
   res.json({ ok: true, previews: r.rows });
 });
 app.post('/api/master/previews', requireAuth, rlGeral, async (req, res) => {
