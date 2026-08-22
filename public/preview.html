@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex, nofollow"/>
+<title>{{NOME}} — Prévia do seu site (BRB Pro)</title>
+<meta name="description" content="Prévia do site da {{NOME}}, gerada pela BRB Pro. O site oficial fica no ar em até 48h."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#07080A;--card:#111316;--line:#23252B;--cor:{{COR}};--cor2:{{COR_CLARA}};--text:#F2F0EC;--muted:#9BA0AE}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.55;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+  .btn{border-radius:999px;padding:14px 24px;font-weight:800;font-size:13px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;transition:transform .2s,box-shadow .2s}
+  .btn-gold{background:linear-gradient(180deg,var(--cor2),var(--cor));color:#111;box-shadow:0 8px 24px color-mix(in srgb, var(--cor) 28%, transparent)}
+  .btn-gold:hover{transform:translateY(-2px)}
+  .btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
+  .btn-ghost:hover{background:#16181d}
+  .btn-big{font-size:15px;padding:18px 34px}
+  /* BANNER PRÉVIA */
+  .pv-banner{background:linear-gradient(90deg,color-mix(in srgb, var(--cor) 18%, #0b0b0d),#0b0b0d);border-bottom:1px solid var(--line);padding:10px 16px;text-align:center;font-size:12px;color:#C8CBD2}
+  .pv-banner b{color:var(--cor2)}
+  /* NAV */
+  .nav{position:sticky;top:0;z-index:20;background:rgba(7,8,10,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:13px 22px;gap:12px}
+  .logo{font-family:'Playfair Display',serif;font-size:19px;font-weight:800;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .logo span{color:var(--cor);font-style:italic}
+  /* HERO */
+  .hero{position:relative;padding:64px 0 52px;background:linear-gradient(180deg,rgba(7,8,10,.55),rgba(7,8,10,.92)),url('/images/preview-hero.jpg') center/cover no-repeat}
+  .kicker{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--cor);font-weight:800;margin-bottom:10px}
+  .hero h1{font-family:'Playfair Display',serif;font-size:46px;line-height:1.02;letter-spacing:-.02em;margin-bottom:12px}
+  .hero p.sub{color:#C8CBD2;font-size:16px;max-width:560px}
+  .hero-meta{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:12.5px;color:var(--muted)}
+  .hero-ctas{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
+  /* SECTIONS */
+  section{padding:44px 0;border-bottom:1px solid #121317}
+  h2{font-family:'Playfair Display',serif;font-size:30px;letter-spacing:-.02em;line-height:1.08}
+  h2 em{color:var(--cor);font-style:italic}
+  .sub2{color:#C8CBD2;font-size:14.5px;max-width:680px;margin-top:8px}
+  /* PASSOS */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
+  .step{border:1px solid var(--line);border-radius:16px;padding:18px;background:var(--card);text-align:center}
+  .step span{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--cor);color:#111;font-weight:800;margin:0 auto 10px}
+  .step b{display:block;font-size:14px}
+  .step p{font-size:12px;color:var(--muted);margin-top:4px}
+  .badge48{display:inline-block;margin-top:18px;background:color-mix(in srgb, var(--cor) 12%, transparent);border:1px solid color-mix(in srgb, var(--cor) 45%, transparent);color:var(--cor2);font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:10px 18px;border-radius:999px}
+  /* SERVIÇOS */
+  .grid-serv{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+  .pv-servico{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;min-height:96px;display:flex;flex-direction:column;justify-content:space-between;gap:6px}
+  .pv-servico h3{font-size:15px}
+  .pv-servico p{font-size:12px;color:var(--muted)}
+  .pv-preco{font-size:20px;font-weight:800;color:var(--cor2)}
+  .pv-nota{grid-column:1/-1;font-size:12px;color:var(--muted);text-align:center;padding:6px}
+  /* GALERIA placeholder */
+  .grid-fotos{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+  .foto-ph{aspect-ratio:1/1;border:2px dashed var(--line);border-radius:16px;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:12.5px;padding:14px;background:repeating-linear-gradient(45deg,#0d0e11,#0d0e11 12px,#101115 12px,#101115 24px)}
+  /* PROVA */
+  .prova{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+  .prova div{border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center;background:var(--card)}
+  .prova strong{display:block;font-size:22px;color:var(--cor2)}
+  .prova span{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+  .quote{margin-top:16px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--cor);border-radius:14px;padding:16px;font-size:13.5px;color:#C8CBD2}
+  .quote b{color:var(--cor2)}
+  /* CTA FINAL */
+  .final{text-align:center;background:radial-gradient(700px 300px at 50% 0%,color-mix(in srgb, var(--cor) 16%, transparent),transparent 70%)}
+  .final h2{font-size:34px;max-width:700px;margin:0 auto}
+  .final p{color:#C8CBD2;margin-top:10px;font-size:14px}
+  .final .hero-ctas{justify-content:center;margin-top:24px}
+  .final small{display:block;margin-top:14px;color:var(--muted);font-size:11.5px}
+  footer{padding:22px 0 34px;color:var(--muted);font-size:12px;text-align:center}
+  footer a{color:var(--muted)}
+  footer a:hover{color:var(--cor2)}
+  @media(max-width:760px){
+    .steps,.grid-serv,.grid-fotos,.prova{grid-template-columns:1fr 1fr}
+    .hero h1{font-size:34px}
+    h2{font-size:25px}
+    .final h2{font-size:26px}
+    .logo{font-size:16px}
+    .nav .btn{padding:10px 14px;font-size:11px}
+  }
+</style>
+</head>
+<body>
+
+<div class="pv-banner">
+  ✂️ <b>PRÉVIA BRB PRO</b> — esta página foi gerada com os dados públicos de <b>{{NOME}}</b>. O site oficial fica no ar em <b>até 48h</b>, com as suas fotos, a sua agenda e o seu painel.
+</div>
+
+<nav class="nav">
+  <div class="logo">{{NOME}}</div>
+  <a class="btn btn-gold" href="https://wa.me/5531983249285?text=Ol%C3%A1!%20Vi%20a%20pr%C3%A9via%20do%20site%20da%20{{NOME}}%20(brbpro.com.br%2F{{SLUG}})%20e%20QUERO%20ESSE%20SITE." target="_blank" rel="noopener" data-beacon>Quero esse site</a>
+</nav>
+
+<div class="hero">
+  <div class="wrap">
+    <p class="kicker">Barbearia em {{CIDADE}}{{ENDERECO_LINHA}}</p>
+    <h1>{{NOME}}</h1>
+    <p class="sub">Corte. Barba. Estilo. — <b>este é o site que você vai receber</b>, com a sua marca, os seus preços e a sua agenda online funcionando.</p>
+    <div class="hero-ctas">
+      <a href="https://wa.me/5531983249285?text=Ol%C3%A1!%20Vi%20a%20pr%C3%A9via%20do%20site%20da%20{{NOME}}%20(brbpro.com.br%2F{{SLUG}})%20e%20QUERO%20ESSE%20SITE." target="_blank" rel="noopener" class="btn btn-gold btn-big" data-beacon>QUERO ESSE SITE — ATIVAÇÃO EM 48H</a>
+      <a href="https://artnaregua.brbpro.com.br/" target="_blank" rel="noopener" class="btn btn-ghost">Ver a demo real ao vivo</a>
+    </div>
+    <div class="hero-meta">
+      <span>✅ No ar em até 48h</span>
+      <span>✅ Sem fidelidade</span>
+      <span>✅ Garantia de 7 dias</span>
+      {{INSTAGRAM}}
+    </div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <p class="kicker">Como funciona</p>
+    <h2>Do “quero” ao <em>no ar</em> em 48 horas</h2>
+    <div class="steps">
+      <div class="step"><span>1</span><b>Você envia</b><p>Logo + 3 fotos + serviços + preços (WhatsApp ou e-mail)</p></div>
+      <div class="step"><span>2</span><b>Nós configuramos</b><p>Sua marca, suas cores, agenda e WhatsApp prontos</p></div>
+      <div class="step"><span>3</span><b>Você aprova e o site vai ao ar</b><p>Em seudominio.brbpro.com.br — e a agenda começa a lotar</p></div>
+    </div>
+    <span class="badge48">⚡ Sua barbearia online em até 48 horas</span>
+  </div>
+</section>
+
+<section style="background:#0A0B0D">
+  <div class="wrap">
+    <p class="kicker">Tabela de preços</p>
+    <h2>Serviços & <em>valores</em></h2>
+    <div class="grid-serv">{{SERVICOS}}</div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="kicker">Galeria</p>
+    <h2>Aqui entram <em>as suas fotos</em></h2>
+    <p class="sub2">No site oficial, a galeria é alimentada pelo seu painel — você adiciona cortes, ambientes e vídeos a qualquer momento, sem programador.</p>
+    <div class="grid-fotos">
+      <div class="foto-ph">📷 Sua foto 1<br/><small>(ex.: corte com desenho)</small></div>
+      <div class="foto-ph">📷 Sua foto 2<br/><small>(ex.: barba desenhada)</small></div>
+      <div class="foto-ph">📷 Sua foto 3<br/><small>(ex.: o ambiente da loja)</small></div>
+    </div>
+  </div>
+</section>
+
+<section style="background:#0A0B0D">
+  <div class="wrap">
+    <p class="kicker">Quem já usa</p>
+    <h2>Isto não é maquete. <em>É um site no ar agora.</em></h2>
+    <div class="prova">
+      <div><strong>+1.000</strong><span>clientes na demo real</span></div>
+      <div><strong>4.9★</strong><span>avaliação</span></div>
+      <div><strong>48h</strong><span>seu site no ar</span></div>
+    </div>
+    <div class="quote">“Saí do caderno para agenda lotada no WhatsApp. Hoje o cliente entra no site, escolhe o horário e o pedido cai pronto pra mim. Eu só corto.” — <b>Vitin</b>, dono da Art na Régua, Ouro Preto/MG (<a href="https://artnaregua.brbpro.com.br/" target="_blank" rel="noopener" style="color:var(--cor2)">site ao vivo</a>)</div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <p class="kicker">É isso que você recebe</p>
+    <h2>Este é o seu site — <em>no ar em até 48h.</em></h2>
+    <p>Site premium no seu subdomínio + agenda online + WhatsApp que fecha + reativação automática de clientes inativos + painel do dono + Painel da TV.</p>
+    <div class="hero-ctas">
+      <a href="https://wa.me/5531983249285?text=Ol%C3%A1!%20Vi%20a%20pr%C3%A9via%20do%20site%20da%20{{NOME}}%20(brbpro.com.br%2F{{SLUG}})%20e%20QUERO%20ESSE%20SITE." target="_blank" rel="noopener" class="btn btn-gold btn-big" data-beacon>QUERO ESSE SITE</a>
+      <a href="https://artnaregua.brbpro.com.br/" target="_blank" rel="noopener" class="btn btn-ghost btn-big">Ver demo ao vivo</a>
+    </div>
+    <small>Sem fidelidade · Garantia de 7 dias (devolvemos 100%) · Planos a partir de R$79/mês</small>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>© 2026 {{NOME}} — prévia gerada pela <b style="color:var(--text)">BRB Pro</b> · brbpro.com.br · WhatsApp (31) 98324-9285 · Ouro Preto/MG</p>
+    <p style="margin-top:8px"><a href="/privacidade.html">Privacidade (LGPD)</a> · <a href="/termos.html">Termos de uso</a></p>
+  </div>
+</footer>
+
+<script>
+  // Beacon de conversão: registra o clique no CTA "QUERO ESSE SITE"
+  (function () {
+    var slug = (window.BRB_PREVIEW && window.BRB_PREVIEW.slug) || '';
+    document.querySelectorAll('[data-beacon]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        try { fetch('/api/preview/' + slug + '/cta', { method: 'POST' }); } catch (_) {}
+      });
+    });
+  })();
+</script>
+</body>
+</html>

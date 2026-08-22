@@ -973,6 +973,133 @@ app.get('/api/tv/canais-saude', async (req, res) => {
   res.json({ ok: true, canais: resultados, online: resultados.filter((r) => r.ok).length, total: resultados.length });
 });
 
+/* ============================ PRÉVIAS POR PROSPECT (prospecção ativa) ============================ */
+// brbpro.com.br/{slug} — template do SaaS com a marca do prospect. O link vende sozinho.
+const SLUGS_RESERVADOS_PATH = new Set(['admin','api','app','www','p','tv','css','js','images','video','assets','privacidade','termos','robots','security','health','saude','versao','login','painel','favicon']);
+function slugify(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
+}
+function corClara(hex, amt) {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(String(hex || ''));
+  if (!m) return '#E8C99A';
+  const n = parseInt(m[1], 16);
+  const mix = (c) => Math.min(255, Math.round(c + (255 - c) * amt));
+  const r = mix((n >> 16) & 255), g = mix((n >> 8) & 255), b = mix(n & 255);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+function renderServicosPreview(servicos) {
+  const arr = Array.isArray(servicos) ? servicos.slice(0, 12) : [];
+  if (!arr.length) {
+    return ['Corte', 'Barba', 'Combo'].map((n) =>
+      `<div class="pv-servico"><h3>${esc(n)}</h3><p>seu serviço</p><div class="pv-preco">R$ —</div></div>`).join('')
+      + '<p class="pv-nota">Aqui aparecem <b>seus</b> serviços e preços, exatamente como ficam no site oficial.</p>';
+  }
+  return arr.map((s) =>
+    `<div class="pv-servico"><h3>${esc(s.nome)}</h3><div class="pv-preco">${s.preco != null ? 'R$ ' + esc(String(s.preco)) : 'sob consulta'}</div></div>`
+  ).join('');
+}
+function servePreview(pv, req, res) {
+  const p = path.join(PUBLIC_DIR, 'preview.html');
+  let html = fs.readFileSync(p, 'utf8');
+  const nome = pv.nome || 'Sua Barbearia';
+  const cidade = pv.cidade || '';
+  const cor = /^#[0-9a-fA-F]{6}$/.test(pv.cor_primaria || '') ? pv.cor_primaria : '#C9A86A';
+  const trocas = {
+    '{{NOME}}': esc(nome),
+    '{{CIDADE}}': cidade ? esc(cidade) : '',
+    '{{CIDADE_LINHA}}': cidade ? ' — ' + esc(cidade) : '',
+    '{{ENDERECO_LINHA}}': pv.endereco ? ' · ' + esc(pv.endereco) : '',
+    '{{INSTAGRAM}}': pv.instagram ? esc(pv.instagram) : '',
+    '{{SERVICOS}}': renderServicosPreview(pv.servicos),
+    '{{COR}}': cor,
+    '{{COR_CLARA}}': corClara(cor, 0.35),
+    '{{SLUG}}': esc(pv.slug),
+  };
+  for (const k of Object.keys(trocas)) html = html.split(k).join(trocas[k]);
+  html = html.replace(/<title>.*?<\/title>/i, `<title>${esc(nome)} — Prévia do seu site (BRB Pro)</title>`);
+  html = html.replace(/<script(?=[\s>])/g, `<script nonce="${req.cspNonce}"`);
+  html = html.replace('</head>', `<script nonce="${req.cspNonce}">window.BRB_PREVIEW=${JSON.stringify({ nome: nome, slug: pv.slug }).replace(/</g, '\\u003c')};</script></head>`);
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.send(html);
+}
+app.get(['/:slug', '/p/:slug'], rlGeral, async (req, res, next) => {
+  const slug = String(req.params.slug || '').toLowerCase();
+  if (!/^[a-z0-9-]{3,30}$/.test(slug) || SLUGS_RESERVADOS_PATH.has(slug)) return next();
+  if (!pool) return res.status(404).send(build404(slug));
+  try {
+    const r = await pool.query('SELECT * FROM previews WHERE slug=$1 AND ativa=TRUE', [slug]);
+    if (!r.rows.length) return res.status(404).send(build404(slug));
+    const pv = r.rows[0];
+    pool.query('UPDATE previews SET visitas = visitas + 1 WHERE id=$1', [pv.id]).catch(() => {});
+    servePreview(pv, req, res);
+  } catch (e) { next(e); }
+});
+// Beacon: prospect clicou em "QUERO ESSE SITE" (métrica de conversão da prévia)
+app.post('/api/preview/:slug/cta', rlGeral, async (req, res) => {
+  if (!pool) return res.json({ ok: false });
+  const slug = String(req.params.slug || '').toLowerCase();
+  try { await pool.query('UPDATE previews SET ctas = ctas + 1 WHERE slug=$1 AND ativa=TRUE', [slug]); } catch (_) {}
+  res.json({ ok: true });
+});
+
+// MASTER: criar/listar/remover prévias
+app.get('/api/master/previews', requireAuth, async (req, res) => {
+  if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
+  if (!pool) return semBanco(res);
+  const r = await pool.query('SELECT id, slug, nome, cidade, visitas, ctas, ativa, criada_em FROM previews ORDER BY criada_em DESC LIMIT 100');
+  res.json({ ok: true, previews: r.rows });
+});
+app.post('/api/master/previews', requireAuth, rlGeral, async (req, res) => {
+  if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
+  if (!pool) return semBanco(res);
+  const nome = String(req.body.nome || '').trim().slice(0, 80);
+  if (nome.length < 2) return res.status(400).json({ ok: false, error: 'Informe o nome da barbearia.' });
+  const cidade = String(req.body.cidade || '').trim().slice(0, 60) || null;
+  const endereco = String(req.body.endereco || '').trim().slice(0, 120) || null;
+  const instagram = String(req.body.instagram || '').trim().replace(/^@/, '').slice(0, 40) || null;
+  const whatsapp = String(req.body.whatsapp || '').replace(/\D/g, '');
+  if (whatsapp && !validarTelefone(whatsapp)) return res.status(400).json({ ok: false, error: 'WhatsApp inválido (use DDD + número).' });
+  const cor = /^#[0-9a-fA-F]{6}$/.test(String(req.body.cor_primaria || '')) ? req.body.cor_primaria : '#C9A86A';
+  const servicos = [];
+  const bruto = Array.isArray(req.body.servicos) ? req.body.servicos : [];
+  for (const s of bruto.slice(0, 12)) {
+    const sn = String((s && s.nome) || '').trim().slice(0, 60);
+    if (!sn) continue;
+    let sp = null;
+    if (s.preco !== '' && s.preco != null) {
+      if (!valorValido(s.preco)) return res.status(400).json({ ok: false, error: 'Preço inválido em "' + sn + '".' });
+      sp = toNum(s.preco);
+    }
+    servicos.push({ nome: sn, preco: sp });
+  }
+  let slug = slugify(nome);
+  if (slug.length < 3) slug = 'barbearia-' + slug;
+  if (RESERVED.has(slug)) slug = slug + '-previa';
+  let i = 2;
+  for (; i <= 50; i++) {
+    const [a, b] = await Promise.all([
+      pool.query('SELECT 1 FROM previews WHERE slug=$1', [slug]),
+      pool.query('SELECT 1 FROM barbershops WHERE slug=$1', [slug]),
+    ]);
+    if (!a.rows.length && !b.rows.length) break;
+    slug = slugify(nome) + '-' + i;
+  }
+  const r = await pool.query(
+    'INSERT INTO previews (slug, nome, cidade, endereco, instagram, whatsapp, cor_primaria, servicos) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, slug',
+    [slug, nome, cidade, endereco, instagram, whatsapp || null, cor, JSON.stringify(servicos)]);
+  registrarLog(req, 'master', 'previa_criada', `${nome} (${slug})`);
+  res.json({ ok: true, id: r.rows[0].id, slug: r.rows[0].slug });
+});
+app.delete('/api/master/previews/:id', requireAuth, async (req, res) => {
+  if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
+  if (!pool) return semBanco(res);
+  await pool.query('UPDATE previews SET ativa=FALSE, atualizada_em=now() WHERE id=$1', [String(req.params.id)]);
+  registrarLog(req, 'master', 'previa_removida', String(req.params.id));
+  res.json({ ok: true });
+});
+
 /* ============================ PÁGINAS ============================ */
 // Landings / painel / blocos de caminho sensíveis
 const CAMINHOS_SENSIVEIS = /^\/(\.env|\.git|server\.js|package(-lock)?\.json|db\/|node_modules|render\.yaml|\.gitignore|Procfile|migration)/i;

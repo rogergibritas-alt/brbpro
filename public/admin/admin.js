@@ -82,10 +82,18 @@
   /* ---------- Autenticação inicial ---------- */
   // BRB Pro: auth via cookie — tenta /api/admin/me sem checar localStorage
   // if (!token) { window.location.href = '/admin/login.html'; return; }
-  api('/api/admin/me').then(function (j) { if (!j.ok) { window.location.href = '/admin/login.html'; } }).catch(function(){ window.location.href = '/admin/login.html'; });
+  var ME = null;
+  api('/api/admin/me').then(function (j) {
+    if (!j.ok) { window.location.href = '/admin/login.html'; return; }
+    ME = j.user || null;
+    if (ME && ME.role === 'master') {
+      var tabPrevias = document.querySelector('[data-tab="previews"]');
+      if (tabPrevias) tabPrevias.hidden = false;
+    }
+  }).catch(function(){ window.location.href = '/admin/login.html'; });
 
   /* ---------- Navegação ---------- */
-  var titulos = { dashboard: 'Visão geral', agenda: 'Agenda', importar: 'Importar agenda', clientes: 'Clientes', caixa: 'Fluxo de caixa', estoque: 'Estoque', servicos: 'Serviços & preços', galeria: 'Galeria', faq: 'Dúvidas frequentes', relatorio: 'Relatório', auditoria: 'Auditoria', config: 'Configurações' };
+  var titulos = { dashboard: 'Visão geral', agenda: 'Agenda', importar: 'Importar agenda', clientes: 'Clientes', caixa: 'Fluxo de caixa', estoque: 'Estoque', servicos: 'Serviços & preços', galeria: 'Galeria', faq: 'Dúvidas frequentes', relatorio: 'Relatório', auditoria: 'Auditoria', config: 'Configurações', previews: 'Prévias personalizadas' };
   document.querySelectorAll('.nav-item[data-tab]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       document.querySelectorAll('.nav-item[data-tab]').forEach(function (b) { b.classList.remove('ativo'); });
@@ -119,6 +127,7 @@
     if (tab === 'faq') carregarFaq();
     if (tab === 'relatorio') { carregarRelatorio(); carregarRelatorioMensal(); }
     if (tab === 'auditoria') carregarAuditoria();
+    if (tab === 'previews') carregarPreviews();
   }
 
   /* ============================================================
@@ -146,8 +155,83 @@
       case 'excluir-foto': excluirFoto(parseInt(id, 10)); break;
       case 'editar-faq': editarFaq(parseInt(id, 10)); break;
       case 'excluir-faq': excluirFaq(parseInt(id, 10)); break;
+      case 'copiar-previa':
+        (async function () {
+          var url = btn.getAttribute('data-url');
+          try { await navigator.clipboard.writeText(url); toast('Link copiado!'); }
+          catch (_) { window.prompt('Copie o link:', url); }
+        })();
+        break;
+      case 'abrir-previa': window.open(btn.getAttribute('data-url'), '_blank'); break;
+      case 'excluir-previa':
+        if (confirm('Excluir esta prévia? O link para de funcionar.')) {
+          api('/api/master/previews/' + id, { method: 'DELETE' }).then(function (j) {
+            if (j.ok) { toast('Prévia removida.'); carregarPreviews(); } else toast(j.error || 'Erro.');
+          });
+        }
+        break;
     }
   });
+
+  /* ---------- Prévias personalizadas (master) ---------- */
+  function carregarPreviews() {
+    api('/api/master/previews').then(function (j) {
+      var el = $('#pvLista');
+      if (!el) return;
+      if (!j.ok) { el.innerHTML = '<p style="color:var(--muted);font-size:.85rem;">' + esc(j.error || 'Erro ao carregar.') + '</p>'; return; }
+      if (!j.previews.length) { el.innerHTML = '<p style="color:var(--muted);font-size:.85rem;">Nenhuma prévia ainda. Crie a primeira acima.</p>'; return; }
+      var html = '<table class="tabela"><tr><th>Link</th><th>Cidade</th><th>Visitas</th><th>CTAs</th><th>Criada</th><th></th></tr>';
+      j.previews.forEach(function (p) {
+        var url = 'https://brbpro.com.br/' + p.slug;
+        var data = new Date(p.criada_em).toLocaleDateString('pt-BR');
+        html += '<tr>' +
+          '<td><b>' + esc(p.slug) + '</b> <span style="color:var(--muted);font-size:.78rem;">' + esc(p.nome || '') + '</span></td>' +
+          '<td>' + esc(p.cidade || '—') + '</td>' +
+          '<td>' + (p.visitas || 0) + '</td>' +
+          '<td><b style="color:#7EE0A0;">' + (p.ctas || 0) + '</b></td>' +
+          '<td>' + data + '</td>' +
+          '<td style="white-space:nowrap;">' +
+            '<button class="btn btn-sm btn-ghost" data-action="copiar-previa" data-url="' + url + '">Copiar</button> ' +
+            '<button class="btn btn-sm btn-ghost" data-action="abrir-previa" data-url="' + url + '">Abrir</button> ' +
+            '<button class="btn btn-sm btn-danger" data-action="excluir-previa" data-id="' + p.id + '">Excluir</button>' +
+          '</td></tr>';
+      });
+      el.innerHTML = html + '</table>';
+    }).catch(function () {});
+  }
+  (function () {
+    var btn = document.getElementById('btnCriarPrev');
+    if (!btn) return;
+    btn.addEventListener('click', async function () {
+      var nome = $('#pvNome').value.trim();
+      if (nome.length < 2) { toast('Informe o nome da barbearia.'); return; }
+      var servicos = $('#pvServicos').value.split('\n').map(function (l) {
+        var parts = l.split('|').map(function (s) { return s.trim(); });
+        return { nome: parts[0] || '', preco: parts[1] === undefined ? '' : parts[1].replace(/[^0-9.,]/g, '') };
+      }).filter(function (s) { return s.nome; });
+      var status = $('#pvStatus');
+      status.textContent = 'Gerando...';
+      try {
+        var j = await api('/api/master/previews', { method: 'POST', body: JSON.stringify({
+          nome: nome,
+          cidade: $('#pvCidade').value.trim(),
+          endereco: $('#pvEndereco').value.trim(),
+          instagram: $('#pvInsta').value.trim(),
+          cor_primaria: $('#pvCor').value,
+          servicos: servicos
+        }) });
+        if (!j.ok) { status.textContent = j.error || 'Erro ao gerar.'; return; }
+        var url = 'https://brbpro.com.br/' + j.slug;
+        var box = $('#pvResultado');
+        box.hidden = false;
+        box.innerHTML = '✅ Prévia criada: <b>' + url + '</b><br/>' +
+          '<span style="color:var(--muted);font-size:.85rem;">Mande o link com o script: “Fiz uma prévia de como ficaria o site de vocês. Levei uns minutos pra montar. Dá uma olhada.” ✂️</span>';
+        status.textContent = 'Prévia criada!';
+        $('#pvNome').value = ''; $('#pvCidade').value = ''; $('#pvEndereco').value = ''; $('#pvInsta').value = ''; $('#pvServicos').value = '';
+        carregarPreviews();
+      } catch (e) { status.textContent = 'Erro ao gerar.'; }
+    });
+  })();
 
   /* ---------- Dashboard ---------- */
   async function carregarDashboard() {
