@@ -221,6 +221,11 @@
   footer a{color:var(--muted)}
   footer a:hover{color:var(--gold2)}
   .foot-brand{font-family:'Playfair Display',serif;font-size:16px;color:var(--text)}
+  /* VÍDEO DE VENDA */
+  .video-split{display:grid;grid-template-columns:1.05fr .95fr;gap:32px;align-items:center}
+  .phone-mock{width:min(340px,78%);margin:0 auto;aspect-ratio:9/16;border:10px solid #17191E;border-radius:36px;overflow:hidden;background:#000;box-shadow:0 30px 70px rgba(0,0,0,.55)}
+  .phone-mock video{width:100%;height:100%;object-fit:cover;display:block}
+  @media(max-width:900px){.video-split{grid-template-columns:1fr}}
   /* MOBILE STICKY CTA */
   .sticky-cta{position:fixed;bottom:0;left:0;right:0;z-index:40;background:rgba(10,11,13,.95);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 14px;display:none;gap:10px}
   .sticky-cta.show{display:flex}
@@ -306,6 +311,26 @@
     <div data-reveal><strong>5</strong><span>barbearias/mês (vagas)</span></div>
   </div>
 </div>
+
+<!-- 2.5 VÍDEO DE VENDA -->
+<section style="background:#0A0B0D">
+  <div class="wrap video-split">
+    <div data-reveal>
+      <div class="kicker">Assista — 60 segundos</div>
+      <h2>Veja como sua agenda <em>se lota sozinha</em></h2>
+      <p class="sub">Sem enrolação: o que você perde toda semana, como a BRB Pro transforma isso em agendamento fechado no seu WhatsApp e o dinheiro parado que existe na sua base de clientes.</p>
+      <div style="margin-top:18px;display:flex;gap:12px;flex-wrap:wrap">
+        <a href="#planos" class="btn btn-gold">QUERO LOTAR MINHA AGENDA</a>
+        <a href="https://artnaregua.brbpro.com.br/" target="_blank" rel="noopener" class="btn btn-ghost">Ver demo ao vivo</a>
+      </div>
+    </div>
+    <div class="phone-mock" data-reveal>
+      <video poster="/images/video-poster.jpg" preload="metadata" playsinline controls aria-label="Vídeo: como a BRB Pro lota a agenda da sua barbearia">
+        <source src="/video/venda.mp4" type="video/mp4"/>
+      </video>
+    </div>
+  </div>
+</section>
 
 <!-- 3. O PROBLEMA -->
 <section>
@@ -605,8 +630,9 @@
 <footer>
   <div class="wrap">
     <div class="foot-brand">BRB<span style="color:var(--gold)">Pro</span></div>
-    <p style="margin-top:6px">© 2026 BRB Pro • brbpro.com.br • Feito para barbearias que querem lotar a cadeira.<br/>
-      Case oficial: <a href="https://artnaregua.brbpro.com.br/" target="_blank" rel="noopener" style="color:var(--gold)">Art na Régua — artnaregua.brbpro.com.br</a> · WhatsApp (31) 99781-6616 · Ouro Preto/MG</p>
+    <p style="margin-top:6px">© 2026 BRB Pro — serviços digitais para barbearias • brbpro.com.br<br/>
+      Feito para barbearias que querem lotar a cadeira. Case oficial: <a href="https://artnaregua.brbpro.com.br/" target="_blank" rel="noopener" style="color:var(--gold)">Art na Régua — artnaregua.brbpro.com.br</a><br/>
+      WhatsApp (31) 99781-6616 · Ouro Preto — MG</p>
     <p style="margin-top:10px">
       <a href="/privacidade.html">Privacidade (LGPD)</a> • <a href="/termos.html">Termos de uso</a> • <a href="/admin/login.html">Área do dono</a>
     </p>

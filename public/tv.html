@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel TV — Art na Régua</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --preto: #0b0b0d; --preto-2: #121216; --preto-3: #1a1a20;
+      --dourado: #c9a15c; --dourado-claro: #e6c98a;
+      --texto: #ece7dd; --muted: #a39a8a; --verde: #34d17b; --vermelho: #ff6b6b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; }
+    body {
+      font-family: "Manrope", -apple-system, "Segoe UI", sans-serif;
+      background: var(--preto); color: var(--texto);
+      display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ===== TOPO: agenda ===== */
+    .topo {
+      display: flex; align-items: center; gap: 2rem;
+      padding: 1.1rem 2.5rem;
+      background: linear-gradient(180deg, var(--preto-2), var(--preto));
+      border-bottom: 1px solid rgba(201,161,92,.3);
+      flex-shrink: 0;
+    }
+    .relogio {
+      display: flex; flex-direction: column; min-width: 240px;
+      border-right: 1px solid rgba(255,255,255,.08); padding-right: 2rem;
+    }
+    .relogio .hora {
+      font-family: "Playfair Display", serif; font-size: 3.4rem; font-weight: 800;
+      color: var(--dourado-claro); line-height: 1; letter-spacing: .02em;
+    }
+    .relogio .data { color: var(--muted); font-size: 1rem; margin-top: .2rem; }
+
+    .card-agenda {
+      display: flex; flex-direction: column; gap: .15rem;
+      padding: .4rem 1.6rem; border-radius: 14px; flex: 1;
+    }
+    .card-agenda.agora {
+      background: linear-gradient(135deg, rgba(201,161,92,.18), rgba(201,161,92,.05));
+      border: 1.5px solid var(--dourado);
+    }
+    .card-agenda.proximo {
+      background: var(--preto-3); border: 1px solid rgba(255,255,255,.08);
+    }
+    .card-agenda .rotulo {
+      font-size: .78rem; letter-spacing: .22em; text-transform: uppercase;
+      font-weight: 800; color: var(--dourado);
+    }
+    .card-agenda .nome {
+      font-family: "Playfair Display", serif; font-size: 2.2rem; font-weight: 800;
+      line-height: 1.05;
+    }
+    .card-agenda.agora .nome { color: #fff; }
+    .card-agenda .detalhe { color: var(--muted); font-size: 1rem; }
+
+    .marca {
+      display: flex; align-items: center; gap: .5rem; margin-left: auto;
+      font-family: "Playfair Display", serif; font-weight: 700; font-size: 1.1rem;
+      color: var(--dourado); white-space: nowrap;
+    }
+    .marca img { width: 38px; height: 38px; }
+
+    /* ===== ÁREA DE MÍDIA (~70%) ===== */
+    .canal-area {
+      flex: 1; display: flex; flex-direction: column; min-height: 0; background: #000;
+    }
+    .canal-player { flex: 1; min-height: 0; position: relative; background: #000; }
+    .canal-player video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+    .canal-player .erro {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: var(--muted); text-align: center; padding: 2rem; font-size: 1.1rem;
+    }
+
+    /* Visual do lo-fi (equalizador) quando está em áudio */
+    .eq-wrap {
+      position: absolute; inset: 0; display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1.5rem;
+      background: radial-gradient(ellipse at center, #1a1710 0%, #0b0b0d 75%);
+    }
+    .eq-wrap.on { display: flex; }
+    .eq-barras { display: flex; align-items: flex-end; gap: 6px; height: 120px; }
+    .eq-barras span {
+      width: 10px; border-radius: 4px;
+      background: linear-gradient(180deg, var(--dourado-claro), var(--dourado));
+      animation: eq 1s ease-in-out infinite;
+    }
+    .eq-barras span:nth-child(1) { height: 40%; animation-delay: 0s; }
+    .eq-barras span:nth-child(2) { height: 75%; animation-delay: .1s; }
+    .eq-barras span:nth-child(3) { height: 55%; animation-delay: .2s; }
+    .eq-barras span:nth-child(4) { height: 90%; animation-delay: .3s; }
+    .eq-barras span:nth-child(5) { height: 60%; animation-delay: .4s; }
+    .eq-barras span:nth-child(6) { height: 80%; animation-delay: .5s; }
+    .eq-barras span:nth-child(7) { height: 45%; animation-delay: .6s; }
+    @keyframes eq { 0%,100% { transform: scaleY(.5); } 50% { transform: scaleY(1); } }
+    .eq-nome { font-family: "Playfair Display", serif; font-size: 1.6rem; color: var(--dourado-claro); }
+    .eq-sub { color: var(--muted); font-size: .9rem; }
+
+    /* Barra de controles */
+    .canal-bar {
+      display: flex; gap: .5rem; align-items: center; flex-wrap: wrap;
+      padding: .7rem 1rem; background: var(--preto-2); border-top: 1px solid rgba(255,255,255,.06);
+    }
+    .canal-bar .grupo {
+      display: flex; align-items: center; gap: .4rem;
+      padding-right: .8rem; margin-right: .4rem; border-right: 1px solid rgba(255,255,255,.1);
+    }
+    /* container dos canais de filme: deixa os grupos virarem itens diretos da barra */
+    .grupo-filmes { display: contents; }
+    .canal-bar .grupo-label {
+      font-size: .7rem; letter-spacing: .15em; text-transform: uppercase;
+      color: var(--muted); font-weight: 800; white-space: nowrap;
+    }
+    .canal-bar .status { color: var(--muted); font-size: .85rem; margin-left: auto; }
+    .canal-bar .status.on { color: var(--verde); }
+    .canal-bar button {
+      padding: .55rem .95rem; border-radius: 10px; border: 1px solid rgba(255,255,255,.15);
+      background: var(--preto-3); color: var(--texto); font-weight: 700; font-size: .82rem;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+    }
+    .canal-bar button.ativo { background: linear-gradient(135deg, var(--dourado-claro), var(--dourado)); color: var(--preto); border-color: transparent; }
+    .canal-bar button.mute { border-color: rgba(255,107,107,.4); color: var(--vermelho); }
+
+    @media (max-width: 800px) {
+      .topo { flex-wrap: wrap; gap: 1rem; padding: 1rem; }
+      .relogio { min-width: 140px; padding-right: 1rem; }
+      .relogio .hora { font-size: 2.4rem; }
+      .card-agenda .nome { font-size: 1.5rem; }
+      .marca { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- TOPO: relógio + agenda -->
+  <div class="topo">
+    <div class="relogio">
+      <div class="hora" id="relHora">--:--:--</div>
+      <div class="data" id="relData">—</div>
+    </div>
+    <div class="card-agenda agora" id="cardAgora">
+      <span class="rotulo">🔴 Em atendimento agora</span>
+      <span class="nome" id="agoraNome">—</span>
+      <span class="detalhe" id="agoraDetalhe"></span>
+    </div>
+    <div class="card-agenda proximo" id="cardProximo">
+      <span class="rotulo">🟡 Próximo</span>
+      <span class="nome" id="proximoNome">—</span>
+      <span class="detalhe" id="proximoDetalhe"></span>
+    </div>
+    <div class="marca"><img src="/images/logo-icon.png" alt="" /> Art na Régua</div>
+  </div>
+
+  <!-- ÁREA DE MÍDIA -->
+  <div class="canal-area">
+    <div class="canal-player" id="canalPlayer">
+      <video id="canalVideo" muted playsinline controls></video>
+      <div class="eq-wrap" id="eqWrap">
+        <div class="eq-barras"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="eq-nome" id="eqNome">Rap Nacional</div>
+        <div class="eq-sub">Música brasileira — ambiente da barbearia</div>
+      </div>
+      <div class="erro" id="canalErro" hidden></div>
+    </div>
+    <div class="canal-bar">
+      <div class="grupo">
+        <span class="grupo-label">🎬 Clipes</span>
+        <button class="clip-btn ativo" data-tipo="clip" data-idx="0">🇧🇷 Funk/Rap BR</button>
+        <button class="clip-btn" data-tipo="clip" data-idx="1">🎤 Hip Hop</button>
+        <button class="clip-btn" data-tipo="clip" data-idx="2">😌 Chill</button>
+        <button class="clip-btn" data-tipo="clip" data-idx="3">🌍 Urban Intl</button>
+        <button class="clip-btn" data-tipo="clip" data-idx="4">📺 Urbano TV</button>
+      </div>
+      <div class="grupo">
+        <span class="grupo-label">🎧 Nacional</span>
+        <button class="audio-btn" data-tipo="audio" data-idx="0">🎤 Rap Nacional</button>
+        <button class="audio-btn" data-tipo="audio" data-idx="1">🎶 Soul/Hip-Hop</button>
+        <button class="audio-btn" data-tipo="audio" data-idx="2">🔥 Hip-Hop Nacional</button>
+      </div>
+      <div class="grupo-filmes" id="filmesBar"><!-- canais de filme gerados dinamicamente --></div>
+      <span class="status" id="canalStatus">Conectando...</span>
+      <button class="mute" id="btnMute">🔇 Som</button>
+    </div>
+  </div>
+
+  <script src="/js/hls.min.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      /* ---------- Relógio ---------- */
+      var dias = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+      var meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+      function atualizarRelogio() {
+        var d = new Date();
+        document.getElementById('relHora').textContent =
+          String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
+        document.getElementById('relData').textContent =
+          dias[d.getDay()] + ', ' + d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear();
+      }
+      atualizarRelogio();
+      setInterval(atualizarRelogio, 1000);
+
+      /* ---------- Agenda (atual + próximo) ---------- */
+      function formatarDetalhe(a) {
+        if (!a) return '';
+        var extra = Number(a.num_slots) >= 2 ? ' · 2 horários' : '';
+        return a.horario + ' — ' + a.servico + extra;
+      }
+      async function atualizarAgenda() {
+        try {
+          var r = await fetch('/api/tv/agora', { cache: 'no-store' });
+          var j = await r.json();
+          if (j.atual) {
+            document.getElementById('agoraNome').textContent = j.atual.nome;
+            document.getElementById('agoraDetalhe').textContent = formatarDetalhe(j.atual);
+          } else {
+            document.getElementById('agoraNome').textContent = 'Livre';
+            document.getElementById('agoraDetalhe').textContent = '';
+          }
+          if (j.proximo) {
+            document.getElementById('proximoNome').textContent = j.proximo.nome;
+            document.getElementById('proximoDetalhe').textContent = formatarDetalhe(j.proximo);
+          } else {
+            document.getElementById('proximoNome').textContent = '—';
+            document.getElementById('proximoDetalhe').textContent = '';
+          }
+        } catch (e) {}
+      }
+      atualizarAgenda();
+      setInterval(atualizarAgenda, 30000);
+
+      /* ---------- Mídia ---------- */
+      var video = document.getElementById('canalVideo');
+      var statusEl = document.getElementById('canalStatus');
+      var erroEl = document.getElementById('canalErro');
+      var eqWrap = document.getElementById('eqWrap');
+      var eqNome = document.getElementById('eqNome');
+      var hls = null;
+      var audio = new Audio();
+      var modoAtual = 'clip'; // 'clip' | 'audio'
+      var idxAtual = 0;
+
+      // Canais de clipes (vídeo HLS) — funk/trap urbano, sem apelação
+      var CLIPES = [
+        { nome: 'Funk/Rap BR', url: 'https://cdn-uw2-prod.tsv2.amagi.tv/linear/amg01131-tracetv-tracebrazuca-samsungbr/playlist.m3u8' },
+        { nome: 'Hip Hop', url: 'https://d3vgs3ro3x6v8a.cloudfront.net/Vevo_Hip_Hop.m3u8' },
+        { nome: 'Chill', url: 'https://dvnftgdlbnemm.cloudfront.net/XITE_Just_Chill.m3u8' },
+        { nome: 'Urban Intl', url: 'https://channels.trace.plus/Traceprod/URBAN_INTER_hd/index.m3u8' },
+        { nome: 'Urbano TV', url: 'https://59ef525c24caa.streamlock.net/tvurbano/tvurbano/playlist.m3u8' }
+      ];
+
+      // Fallback local (usado se o servidor não responder) — endereços fixos.
+      var FILMES_FALLBACK = [
+        { nome: 'Sony Movies', categoria: 'Filmes (TV)', url: 'http://45.162.64.114/SONY_MOVIES/index.m3u8' },
+        { nome: 'Studio Universal', categoria: 'Filmes (TV)', url: 'http://177.52.24.163/STUDIO-UNIVERSAL-HD/index.m3u8' },
+        { nome: 'Sony Channel', categoria: 'Filmes (TV)', url: 'http://45.190.28.50/SONY_HD/index.m3u8' },
+        { nome: 'AXN', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/AXN_HD/index.m3u8' },
+        { nome: 'A&E', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/AE_HD/index.m3u8' },
+        { nome: 'Lifetime', categoria: 'Ação & Aventura', url: 'http://138.255.2.6:8084/LIFETIME/index.m3u8' },
+        { nome: 'Adult Swim', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/TRUTV_HD/index.m3u8' }
+      ];
+
+      // Lista viva de canais de filme (o servidor devolve a lista atual).
+      var FILMES = FILMES_FALLBACK.slice();
+
+      async function carregarCanaisFilmes() {
+        try {
+          var r = await fetch('/api/tv/canais', { cache: 'no-store' });
+          var j = await r.json();
+          if (j.ok && j.canais && j.canais.length) {
+            FILMES = j.canais;
+            return true;
+          }
+        } catch (e) {}
+        FILMES = FILMES_FALLBACK.slice();
+        return false;
+      }
+
+      // Desenha os botões de filme agrupados por categoria.
+      function renderFilmes() {
+        var bar = document.getElementById('filmesBar');
+        bar.innerHTML = '';
+        var categorias = [];
+        var porCat = {};
+        FILMES.forEach(function (f, i) {
+          var cat = f.categoria || 'Filmes';
+          if (porCat[cat] === undefined) { porCat[cat] = []; categorias.push(cat); }
+          porCat[cat].push({ nome: f.nome, idx: i });
+        });
+        categorias.forEach(function (cat) {
+          var g = document.createElement('div');
+          g.className = 'grupo';
+          var label = document.createElement('span');
+          label.className = 'grupo-label';
+          label.textContent = (cat.indexOf('Ação') >= 0 ? '💥 ' : '🎬 ') + cat;
+          g.appendChild(label);
+          porCat[cat].forEach(function (item) {
+            var b = document.createElement('button');
+            b.className = 'filme-btn';
+            b.setAttribute('data-idx', String(item.idx));
+            b.textContent = item.nome;
+            b.addEventListener('click', function () {
+              document.querySelectorAll('.filme-btn').forEach(function (x) { x.classList.remove('ativo'); });
+              b.classList.add('ativo');
+              tocarFilme(item.idx);
+            });
+            g.appendChild(b);
+          });
+          bar.appendChild(g);
+        });
+        var grupos = bar.querySelectorAll('.grupo');
+        grupos.forEach(function (g, i) {
+          g.style.borderRight = (i === grupos.length - 1) ? 'none' : '';
+        });
+      }
+
+      // Monta a URL: streams http:// passam pelo proxy do servidor (evita bloqueio do navegador)
+      function montarUrl(url) {
+        if (url.indexOf('http://') === 0) {
+          return '/api/tv/proxy?url=' + encodeURIComponent(url);
+        }
+        return url;
+      }
+
+      /* ---------- AUTO-RECUPERAÇÃO (vigia dos canais) ---------- */
+      function lerCanaisRuins() {
+        try { return JSON.parse(localStorage.getItem('tv_canais_ruins') || '[]'); } catch (e) { return []; }
+      }
+      function marcarCanalRuim(idx) {
+        var ruins = lerCanaisRuins();
+        if (ruins.indexOf(idx) < 0) ruins.push(idx);
+        try { localStorage.setItem('tv_canais_ruins', JSON.stringify(ruins)); } catch (e) {}
+      }
+      function tocarProximoCanalBom(idxAtual) {
+        var ruins = lerCanaisRuins();
+        for (var k = 1; k <= FILMES.length; k++) {
+          var prox = (idxAtual + k) % FILMES.length;
+          if (ruins.indexOf(prox) < 0) {
+            tocarFilme(prox);
+            return;
+          }
+        }
+        try { localStorage.setItem('tv_canais_ruins', '[]'); } catch (e) {}
+        tocarFilme(0);
+      }
+
+      // Consulta o servidor: quais canais estão online agora
+      async function verificarSaudeCanais() {
+        try {
+          var r = await fetch('/api/tv/canais-saude', { cache: 'no-store' });
+          var j = await r.json();
+          var online = {};
+          (j.canais || []).forEach(function (c) { online[c.nome] = c.ok; });
+          document.querySelectorAll('.filme-btn').forEach(function (btn) {
+            var idx = parseInt(btn.getAttribute('data-idx'), 10);
+            var canal = FILMES[idx];
+            if (!canal) return;
+            if (online[canal.nome] === false) {
+              btn.style.opacity = '0.4';
+              btn.title = 'Canal fora do ar no momento';
+            } else {
+              btn.style.opacity = '1';
+              btn.title = '';
+            }
+          });
+          return online;
+        } catch (e) { return null; }
+      }
+
+      // Ao carregar: verifica a saúde e já toca o 1º canal que estiver online
+      async function iniciarComCanalBom() {
+        var online = await verificarSaudeCanais();
+        var ruins = lerCanaisRuins();
+        for (var i = 0; i < FILMES.length; i++) {
+          if (ruins.indexOf(i) >= 0) continue;
+          if (online && online[FILMES[i].nome] === false) continue;
+          document.querySelectorAll('.filme-btn').forEach(function (b) { b.classList.remove('ativo'); });
+          var btn = document.querySelector('.filme-btn[data-idx="' + i + '"]');
+          if (btn) btn.classList.add('ativo');
+          tocarFilme(i);
+          return;
+        }
+        tocarClip(0);
+      }
+
+      // Rádios nacionais (rap/hip-hop/funk consciente — clima de barbearia)
+      var RADIOS = [
+        { nome: 'Rap Nacional', url: 'https://stream.zeno.fm/7c83b37e32quv' },
+        { nome: 'Soul / Hip-Hop SP', url: 'https://stream.soulone.com.br/listen/soulone/externo' },
+        { nome: 'Hip-Hop Nacional', url: 'https://stream-177.zeno.fm/0y8rbwb6bzzuv' }
+      ];
+
+      function pararTudo() {
+        if (hls) { hls.destroy(); hls = null; }
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+        eqWrap.classList.remove('on');
+      }
+
+      function marcarAtivo(tipo, idx) {
+        document.querySelectorAll('.clip-btn, .audio-btn').forEach(function (b) {
+          b.classList.toggle('ativo', b.getAttribute('data-tipo') === tipo && parseInt(b.getAttribute('data-idx'), 10) === idx);
+        });
+        document.querySelectorAll('.filme-btn').forEach(function (b) { b.classList.remove('ativo'); });
+      }
+
+      function tocarClip(idx) {
+        modoAtual = 'clip';
+        idxAtual = idx;
+        pararTudo();
+        erroEl.hidden = true;
+        statusEl.textContent = 'Conectando...';
+        statusEl.className = 'status';
+        var url = CLIPES[idx].url;
+
+        if (window.Hls && Hls.isSupported()) {
+          hls = new Hls({ maxBufferLength: 30, lowLatencyMode: false, enableWorker: false });
+          hls.loadSource(url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            statusEl.textContent = '● Clipe ao vivo';
+            statusEl.className = 'status on';
+            video.play().catch(function () {});
+          });
+          hls.on(Hls.Events.ERROR, function (evt, data) {
+            if (data.fatal) {
+              erroEl.textContent = 'Canal indisponível. Tentando o próximo...';
+              erroEl.hidden = false;
+              tocarClip((idx + 1) % CLIPES.length);
+            }
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = url;
+          video.addEventListener('loadedmetadata', function () {
+            statusEl.textContent = '● Clipe ao vivo';
+            statusEl.className = 'status on';
+            video.play().catch(function () {});
+          });
+          video.addEventListener('error', function () {
+            erroEl.textContent = 'Canal indisponível. Tentando o próximo...';
+            erroEl.hidden = false;
+            tocarClip((idx + 1) % CLIPES.length);
+          });
+        } else {
+          erroEl.textContent = 'Seu navegador não suporta vídeo ao vivo.';
+          erroEl.hidden = false;
+        }
+      }
+
+      function tocarFilme(idx) {
+        modoAtual = 'clip';
+        idxAtual = idx;
+        pararTudo();
+        erroEl.hidden = true;
+        statusEl.textContent = 'Conectando...';
+        statusEl.className = 'status';
+        var f = FILMES[idx];
+        var url = montarUrl(f.url);
+
+        if (window.Hls && Hls.isSupported()) {
+          hls = new Hls({ maxBufferLength: 30, lowLatencyMode: false, enableWorker: false });
+          hls.loadSource(url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            statusEl.textContent = '● ' + f.nome;
+            statusEl.className = 'status on';
+            video.play().catch(function () {});
+          });
+          hls.on(Hls.Events.ERROR, function (evt, data) {
+            if (data.fatal) {
+              // marca este canal como ruim (lembra na próxima vez)
+              marcarCanalRuim(idx);
+              erroEl.textContent = 'Filme indisponível. Tentando outro...';
+              erroEl.hidden = false;
+              tocarProximoCanalBom(idx);
+            }
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = url;
+          video.addEventListener('loadedmetadata', function () {
+            statusEl.textContent = '● ' + f.nome;
+            statusEl.className = 'status on';
+            video.play().catch(function () {});
+          });
+          video.addEventListener('error', function () {
+            marcarCanalRuim(idx);
+            erroEl.textContent = 'Filme indisponível. Tentando outro...';
+            erroEl.hidden = false;
+            tocarProximoCanalBom(idx);
+          });
+        } else {
+          erroEl.textContent = 'Seu navegador não suporta vídeo ao vivo.';
+          erroEl.hidden = false;
+        }
+      }
+
+      function tocarRadio(idx) {
+        modoAtual = 'audio';
+        idxAtual = idx;
+        pararTudo();
+        erroEl.hidden = true;
+        statusEl.textContent = 'Conectando...';
+        statusEl.className = 'status';
+        var r = RADIOS[idx];
+
+        eqNome.textContent = r.nome;
+        eqWrap.classList.add('on');
+        audio.src = r.url;
+        audio.muted = false;
+        audio.play().then(function () {
+          statusEl.textContent = '● Tocando (lo-fi)';
+          statusEl.className = 'status on';
+        }).catch(function () {
+          // navegador pode ter bloqueado autoplay com som; tenta de novo no clique do som
+          statusEl.textContent = 'Toque em "Som" para ouvir';
+          statusEl.className = 'status';
+        });
+        audio.onerror = function () {
+          erroEl.textContent = 'Rádio indisponível. Tentando a próxima...';
+          erroEl.hidden = false;
+          tocarRadio((idx + 1) % RADIOS.length);
+        };
+      }
+
+      // Botões
+      document.querySelectorAll('.clip-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          marcarAtivo('clip', parseInt(btn.getAttribute('data-idx'), 10));
+          tocarClip(parseInt(btn.getAttribute('data-idx'), 10));
+        });
+      });
+      document.querySelectorAll('.audio-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          marcarAtivo('audio', parseInt(btn.getAttribute('data-idx'), 10));
+          tocarRadio(parseInt(btn.getAttribute('data-idx'), 10));
+        });
+      });
+      // Botão de som
+      var btnMute = document.getElementById('btnMute');
+      var comSom = false;
+      function atualizarSom() {
+        if (modoAtual === 'clip') {
+          video.muted = !comSom;
+        } else {
+          audio.muted = !comSom;
+          if (comSom) audio.play().catch(function () {});
+        }
+        btnMute.textContent = comSom ? '🔊 Som' : '🔇 Som';
+      }
+      btnMute.addEventListener('click', function () {
+        comSom = !comSom;
+        atualizarSom();
+        if (modoAtual === 'audio' && comSom) {
+          statusEl.textContent = '● Tocando (lo-fi)';
+          statusEl.className = 'status on';
+        }
+      });
+
+      // Inicialização: busca os canais (com endereços atualizados), desenha os
+      // botões e já toca o 1º canal de filme que estiver online (com fallback p/ música).
+      async function iniciar() {
+        await carregarCanaisFilmes();
+        renderFilmes();
+        iniciarComCanalBom();
+      }
+      iniciar();
+
+      // Re-verifica a saúde dos canais a cada 5 minutos (auto-recuperação)
+      setInterval(function () { verificarSaudeCanais(); }, 5 * 60 * 1000);
+
+      // Re-busca a lista de canais a cada 30 min (pega possíveis ajustes no servidor)
+      setInterval(async function () {
+        await carregarCanaisFilmes();
+        renderFilmes();
+      }, 30 * 60 * 1000);
+    })();
+  </script>
+</body>
+</html>

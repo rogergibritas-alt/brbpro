@@ -844,6 +844,135 @@ app.put('/api/master/tenants/:id', requireAuth, requireTenantOwner, async (req, 
   res.json({ ok: true });
 });
 
+/* ============================ PAINEL TV (por tenant) ============================ */
+// Cliente sendo atendido AGORA e o PRÓXIMO — público (só nomes e horários, sem telefone)
+app.get('/api/tv/agora', rlGeral, async (req, res) => {
+  if (!pool) return res.json({ ok: true, fechado: false, atual: null, proximo: null });
+  if (!req.tenantId) return res.status(400).json({ ok: false, error: 'Barbearia não identificada.' });
+  const br = new Date(Date.now() - 3 * 3600 * 1000); // horário de Brasília (UTC-3)
+  const hoje = br.toISOString().slice(0, 10);
+  const agoraMin = br.getUTCHours() * 60 + br.getUTCMinutes();
+  const r = await pool.query(
+    "SELECT nome, servico, horario, num_slots FROM agendamentos WHERE tenant_id=$1 AND data=$2 AND status <> 'cancelado' ORDER BY horario",
+    [req.tenantId, hoje]);
+  let atual = null, proximo = null;
+  for (let i = 0; i < r.rows.length; i++) {
+    const a = r.rows[i];
+    const [h, m] = String(a.horario).split(':').map(Number);
+    const inicio = h * 60 + m;
+    const fim = inicio + 40 * (Number(a.num_slots) || 1);
+    if (agoraMin >= inicio && agoraMin < fim) {
+      atual = a;
+      if (i + 1 < r.rows.length) proximo = r.rows[i + 1];
+      break;
+    }
+    if (agoraMin < inicio) { proximo = a; break; }
+  }
+  res.json({
+    ok: true, hoje, agora: br.toISOString(),
+    atual: atual ? { nome: atual.nome, servico: atual.servico, horario: atual.horario, num_slots: atual.num_slots } : null,
+    proximo: proximo ? { nome: proximo.nome, servico: proximo.servico, horario: proximo.horario, num_slots: proximo.num_slots } : null,
+  });
+});
+
+// Proxy HLS: streams HTTP de terceiros entregues via HTTPS (evita mixed content).
+// Anti-SSRF: apenas destinos públicos, nunca rede interna.
+const httpMod = require('http');
+const httpsMod = require('https');
+function buscarRemoto(url, redirects, headers) {
+  return new Promise((resolve, reject) => {
+    const lib = url.startsWith('https') ? httpsMod : httpMod;
+    const req = lib.get(url, { headers: Object.assign({ 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' }, headers || {}) }, (r) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
+        const next = new URL(r.headers.location, url).toString();
+        if ((redirects || 0) > 5) return reject(new Error('muitos redirects'));
+        r.resume();
+        return buscarRemoto(next, (redirects || 0) + 1).then(resolve).catch(reject);
+      }
+      if (r.statusCode !== 200) { r.resume(); return reject(new Error('status ' + r.statusCode)); }
+      const chunks = [];
+      r.on('data', (c) => chunks.push(c));
+      r.on('end', () => resolve({ tipo: r.headers['content-type'] || '', buf: Buffer.concat(chunks) }));
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => { req.destroy(new Error('timeout')); });
+  });
+}
+const rlProxy = rateLimit(240, 60 * 1000);
+app.get('/api/tv/proxy', rlProxy, async (req, res) => {
+  const alvo = String(req.query.url || '').trim();
+  if (!/^https?:\/\//.test(alvo)) return res.status(400).end();
+  try {
+    const u = new URL(alvo);
+    const host = u.hostname.toLowerCase();
+    const ehPrivado = !host || host === 'localhost' || host === '0.0.0.0' ||
+      /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+      host === '::1' || host === '[::1]' ||
+      /\.local$/.test(host) || /\.internal$/.test(host) || /\.lan$/.test(host) ||
+      host.endsWith('.onion');
+    if (ehPrivado) return res.status(403).end();
+  } catch { return res.status(400).end(); }
+  try {
+    const { tipo, buf } = await buscarRemoto(alvo, 0);
+    const texto = buf.toString('utf8');
+    if (tipo.includes('mpegurl') || texto.trim().startsWith('#EXTM3U')) {
+      const base = new URL(alvo);
+      const baseDir = base.toString().slice(0, base.toString().lastIndexOf('/') + 1);
+      const linhas = texto.split('\n').map((linha) => {
+        const l = linha.trim();
+        if (!l || l.startsWith('#')) return linha;
+        const urlAbs = new URL(l, baseDir).toString();
+        return '/api/tv/proxy?url=' + encodeURIComponent(urlAbs);
+      });
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.send(linhas.join('\n'));
+    }
+    const ct = tipo || 'video/mp2t';
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.send(buf);
+  } catch (e) {
+    console.error('[proxy]', alvo, e.message);
+    res.status(502).end();
+  }
+});
+
+// Canais de filme do painel TV (fontes de terceiros, instáveis)
+const CANAIS_FIXOS = [
+  { nome: 'Sony Movies', categoria: 'Filmes (TV)', url: 'http://45.162.64.114/SONY_MOVIES/index.m3u8' },
+  { nome: 'Studio Universal', categoria: 'Filmes (TV)', url: 'http://177.52.24.163/STUDIO-UNIVERSAL-HD/index.m3u8' },
+  { nome: 'Sony Channel', categoria: 'Filmes (TV)', url: 'http://45.190.28.50/SONY_HD/index.m3u8' },
+  { nome: 'AXN', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/AXN_HD/index.m3u8' },
+  { nome: 'A&E', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/AE_HD/index.m3u8' },
+  { nome: 'Lifetime', categoria: 'Ação & Aventura', url: 'http://138.255.2.6:8084/LIFETIME/index.m3u8' },
+  { nome: 'Adult Swim', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/TRUTV_HD/index.m3u8' },
+];
+app.get('/api/tv/canais', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ ok: true, canais: CANAIS_FIXOS });
+});
+app.get('/api/tv/canais-saude', async (req, res) => {
+  const canais = CANAIS_FIXOS;
+  const resultados = [];
+  await Promise.all(canais.map(async (c) => {
+    let ok = false;
+    try {
+      const { buf } = await Promise.race([
+        buscarRemoto(c.url, 0),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+      ]);
+      const texto = buf.toString('utf8');
+      ok = texto.includes('#EXTM3U') && !/error|not found|takedown|slate/i.test(texto.slice(0, 300));
+    } catch { ok = false; }
+    resultados.push({ nome: c.nome, ok });
+  }));
+  const ordem = new Map(canais.map((c, i) => [c.nome, i]));
+  resultados.sort((a, b) => (ordem.get(a.nome) || 0) - (ordem.get(b.nome) || 0));
+  res.json({ ok: true, canais: resultados, online: resultados.filter((r) => r.ok).length, total: resultados.length });
+});
+
 /* ============================ PÁGINAS ============================ */
 // Landings / painel / blocos de caminho sensíveis
 const CAMINHOS_SENSIVEIS = /^\/(\.env|\.git|server\.js|package(-lock)?\.json|db\/|node_modules|render\.yaml|\.gitignore|Procfile|migration)/i;
@@ -915,6 +1044,28 @@ app.get('/', (req, res) => {
 
 // Painel admin (login.html e index.html pagos estáticos)
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
+
+// Painel TV do tenant (a TV da barbearia abre https://slug.brbpro.com.br/tv)
+app.get('/tv', async (req, res) => {
+  // Sem tenant no host (ex.: painel master em app.brbpro.com.br) → usa o demo oficial
+  let t = req.tenant;
+  if (!t && pool) {
+    try { t = (await pool.query("SELECT * FROM barbershops WHERE slug='artnaregua' AND ativo=TRUE")).rows[0] || null; } catch { t = null; }
+  }
+  if (!t) return res.status(404).send(build404(''));
+  try {
+    const p = path.join(PUBLIC_DIR, 'tv.html');
+    if (!fs.existsSync(p)) return res.status(404).end();
+    let html = fs.readFileSync(p, 'utf8');
+    const nome = t.nome || 'Barbearia';
+    html = html.replace(/<title>.*?<\/title>/i, `<title>Painel TV — ${esc(nome)}</title>`);
+    html = html.replace(/<div class="marca">[\s\S]*?<\/div>/, `<div class="marca"><img src="/images/logo-icon.png" alt="" /> ${esc(nome)}</div>`);
+    html = html.replace(/<script(?=[\s>])/g, `<script nonce="${req.cspNonce}"`);
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.send(html);
+  } catch (e) { res.status(404).end(); }
+});
 
 // Fallback: arquivos estáticos do tenant — SEMPRE dentro de public/ (anti path-traversal)
 function arquivoPublicoSeguro(req) {
