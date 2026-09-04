@@ -950,6 +950,7 @@
       '<label class="field"><span>Logo (clique p/ enviar)</span><input type="file" id="pLogo" accept="image/*" /></label>' +
       '<label class="field"><span>Imagem de fundo (topo)</span><input type="file" id="pHeroImg" accept="image/*" /></label>' +
       '<label class="field"><span>Vídeo de fundo (opcional, até ~15MB)</span><input type="file" id="pVideo" accept="video/*" /></label>' +
+      '<label class="field"><span>Vídeo de introdução (até ~20MB)</span><input type="file" id="pIntro" accept="video/*" /></label>' +
       '</div>' +
       '<div style="margin-top:1rem;display:flex;gap:.6rem;justify-content:flex-end;">' +
         '<button class="btn btn-ghost" data-custom-cancel>Cancelar</button>' +
@@ -964,6 +965,7 @@
         body.logo = await lerArquivo('#pLogo', 250000);       // comprimido p/ ~600px, ~180KB
         body.hero_imagem = await lerArquivo('#pHeroImg', 1500000); // comprimido p/ ~1600px
         body.video_hero = await lerArquivo('#pVideo', 15000000);   // vídeos até ~15MB
+        body.intro_video = await lerArquivo('#pIntro', 20000000);  // vídeo de intro até ~20MB
       } catch (e) { toast(e.message); return; }
       var r = await api('/api/master/tenants/' + id + '/personalizar', { method: 'PUT', body: JSON.stringify(body) });
       if (r.ok) { toast('Site personalizado e publicado! ✅'); fecharModal(); }
