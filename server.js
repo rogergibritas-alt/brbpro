@@ -77,7 +77,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 app.use(cookieParser());
-app.use(express.json({ limit: '12mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // CORS restrito ao próprio domínio
@@ -426,6 +426,28 @@ app.get('/api/foto/:id', async (req, res) => {
     res.send(buf);
   } catch (e) { console.error('[foto]', e.message); res.status(500).end(); }
 });
+// Serve mídia de marca da barbearia (logo / hero_imagem / video_hero) por URL,
+// evitando embutir base64 pesado no HTML (deixa o site leve).
+app.get('/m/:slug/:tipo', async (req, res) => {
+  if (!pool) return res.status(404).end();
+  const slug = String(req.params.slug || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const tipo = String(req.params.tipo || '');
+  const col = tipo === 'logo' ? 'logo' : tipo === 'hero' ? 'hero_imagem' : tipo === 'video' ? 'video_hero' : null;
+  if (!col || !slug) return res.status(404).end();
+  try {
+    const r = await pool.query('SELECT ' + col + ' AS m FROM barbershops WHERE slug=$1', [slug]);
+    const m = r.rows[0] && r.rows[0].m;
+    if (!m || typeof m !== 'string') return res.status(404).end();
+    const match = /^data:([a-zA-Z0-9/+.-]+);base64,(.+)$/.exec(m);
+    if (!match) return res.status(404).end();
+    const buf = Buffer.from(match[2], 'base64');
+    res.setHeader('Content-Type', match[1]);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    if (match[1].startsWith('video/')) { res.setHeader('Accept-Ranges', 'bytes'); res.setHeader('Content-Length', buf.length); }
+    res.send(buf);
+  } catch (e) { res.status(404).end(); }
+});
+
 app.get('/api/faq', rlGeral, async (req, res) => {
   if (!pool) return semBanco(res);
   if (!req.tenantId) return res.status(400).json({ ok: false, error: 'Barbearia não identificada.' });
@@ -871,9 +893,9 @@ app.put('/api/master/tenants/:id/personalizar', requireAuth, requireTenantOwner,
   let midias = {};
   try {
     midias = {
-      logo: limita(b.logo, 700000),
-      hero_imagem: limita(b.hero_imagem, 1200000),
-      video_hero: limita(b.video_hero, 6000000),
+      logo: limita(b.logo, 400000),          // logo comprimida ~600px
+      hero_imagem: limita(b.hero_imagem, 2200000), // hero ~1600px
+      video_hero: limita(b.video_hero, 16000000),  // vídeo até ~16MB
     };
   } catch (e) { return res.status(400).json({ ok: false, error: e.message }); }
   const cols = [
@@ -927,7 +949,11 @@ function serveTenantSite(req, res) {
   const heroSub = t.hero_sub || 'Corte, barba e estilo com acabamento impecável. Agende pelo WhatsApp.';
   const slogan = t.slogan ? `<span class="hero-kicker" data-reveal>${esc(t.slogan)}</span>` : `<span class="hero-kicker" data-reveal>${esc(cidade ? 'Barbearia em ' + (t.cidade||'') : 'Barbearia')}</span>`;
   const sobre = t.sobre_texto || `Na ${esc(nome)}, cada atendimento é feito com atenção total. O objetivo é simples — você sair se sentindo a melhor versão de si.`;
-  const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: cor1, cor_secundaria: cor2, slug: t.slug, slogan: t.slogan||'', hero_titulo: heroTitulo, hero_sub: heroSub, sobre_texto: t.sobre_texto||'', logo: t.logo||'' });
+  // Mídia por URL (evita embutir base64 pesado no HTML)
+  const logoUrl = t.logo && String(t.logo).startsWith('data:') ? `/m/${t.slug}/logo` : '';
+  const heroUrl = t.hero_imagem && String(t.hero_imagem).startsWith('data:') ? `/m/${t.slug}/hero` : '';
+  const videoUrl = t.video_hero && String(t.video_hero).startsWith('data:') ? `/m/${t.slug}/video` : '';
+  const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: cor1, cor_secundaria: cor2, slug: t.slug, slogan: t.slogan||'', hero_titulo: heroTitulo, hero_sub: heroSub, sobre_texto: t.sobre_texto||'', logo_url: logoUrl, hero_url: heroUrl, video_url: videoUrl });
   // Título e meta dinâmicos por tenant (SEO / aba do navegador / compartilhamento)
   const titulo = `${heroTitulo}${cidade} | Corte, Barba e Estilo`;
   html = html.replace(/<title>.*?<\/title>/i, `<title>${esc(titulo)}</title>`);
@@ -935,19 +961,15 @@ function serveTenantSite(req, res) {
   html = html.replace(/(<meta property="og:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
   html = html.replace(/(<meta property="og:site_name" content=")[^"]*(")/i, `$1${esc(nome)}$2`);
   html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
-  // Logo do cliente (substitui o ícone padrão da Art na Régua onde houver)
-  if (t.logo && t.logo.startsWith('data:')) {
-    html = html.replace(/<img class="logo-mark"[^>]*>/i, `<img class="logo-mark" src="${t.logo}" alt="${esc(nome)}" />`);
-    html = html.replace(/<img class="logo-mark"[^>]*>/gi, html.match(/<img class="logo-mark"[^>]*>/i) || '');
-    html = html.replace(/<img class=".logo-mark."[^>]*>/ig, `<img class="logo-mark" src="${t.logo}" alt="${esc(nome)}" />`);
-    // rodapé
-    html = html.replace(/<img src="\/images\/logo-icon\.png"[^>]*>/i, `<img src="${t.logo}" alt="${esc(nome)}" />`);
+  // Logo do cliente (por URL — evita embutir base64 pesado no HTML)
+  if (logoUrl) {
+    html = html.replace(/<img class="logo-mark"[^>]*>/i, `<img class="logo-mark" src="${logoUrl}" alt="${esc(nome)}" />`);
+    html = html.replace(/<img src="\/images\/logo-icon\.png"[^>]*>/i, `<img src="${logoUrl}" alt="${esc(nome)}" />`);
   }
-  // Hero: substitui imagem de fundo e texto
-  if (heroImg && heroImg.startsWith('data:')) {
-    html = html.replace(/(\.hero-bg" style="background-image:url\('?)[^')]*(?:'?\))/i, `$1${heroImg})`);
+  // Hero: substitui imagem de fundo (por URL) e texto
+  if (heroUrl) {
+    html = html.replace(/(<div class="hero-bg"[^>]*style="[^"]*url\('?)[^')]*(?:'?\))/i, `$1${heroUrl})`);
   }
-  html = html.replace(/(<div class="hero-bg"[^>]*style="[^"]*url\('?)[^')]*(?:'?\))/i, `$1${heroImg})`);
   // Título / subtítulo / kicker / sobre
   html = html.replace(/(<h1 class="hero-title"[^>]*>)[\s\S]*?(<\/h1>)/i, `$1<span id="brandNome">${esc(heroTitulo)}</span>$2`);
   html = html.replace(/(<p class="hero-desc"[^>]*>)[\s\S]*?(<\/p>)/i, `$1${esc(heroSub)}$2`);
