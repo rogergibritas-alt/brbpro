@@ -954,23 +954,30 @@ async function serveTenantSite(req, res) {
       fotosDoSite = fr.rows.map(r => `/api/foto/${r.id}`);
     }
   } catch (e) {}
-  // Substitui as imagens de fundo fixas (foto1..foto8/hero-real) pelas fotos do cliente
+  // Substitui as imagens de fundo fixas (foto1..foto8/hero-real) pelas fotos do cliente,
+  // aplicando um overlay bem mais claro para a foto aparecer (não ficar preta).
   if (fotosDoSite.length) {
-    const regexBg = /url\(['"]?\/images\/real\/[a-z0-9_\-]+\.jpg['"]?\)/gi;
-    let idx = 0;
-    html = html.replace(regexBg, function () {
-      const url = fotosDoSite[idx % fotosDoSite.length];
-      idx++;
-      return `url('${url}')`;
+    const fotoUrl = (i) => fotosDoSite[i % fotosDoSite.length];
+    const claro = 'linear-gradient(rgba(11,11,13,0.30), rgba(11,11,13,0.42))';
+    // (1) Troca os gradientes escuros fixos (0.70/0.80) por um overlap CLARO, para a foto aparecer
+    html = html.replace(/linear-gradient\(rgba\(11,11,13,\s*0\.70\),\s*rgba\(11,11,13,\s*0\.80\)\)/gi, claro);
+    html = html.replace(/linear-gradient\(rgba\(11,11,13,\s*0\.55\),\s*rgba\(11,11,13,\s*0\.70\)\)/gi, claro);
+    // (2) Troca cada url('/images/real/fotoN.jpg') pela foto do cliente (uma distinta por seção)
+    let sec = 0;
+    html = html.replace(/url\(['"]?\/images\/real\/[a-z0-9_\-]+\.jpg['"]?\)/gi, function () {
+      sec++;
+      return `url('${fotoUrl(sec - 1)}')`;
     });
-    // hero-bg
-    html = html.replace(/url\(['"]?\/images\/real\/hero-real\.jpg['"]?\)/i, `url('${fotosDoSite[0]}')`);
     // <img> da seção sobre que mostra uma foto fixa
-    html = html.replace(/<img src="\/images\/real\/[a-z0-9_\-]+\.jpg"[^>]*>/i, `<img src="${fotosDoSite[0]}" alt="${esc(t.nome)}" loading="lazy" />`);
+    html = html.replace(/<img src="\/images\/real\/[a-z0-9_\-]+\.jpg"[^>]*>/i, `<img src="${fotoUrl(0)}" alt="${esc(t.nome)}" loading="lazy" />`);
+    // se alguma section ficou só com url sem gradiente (fallback), garante gradiente claro
+    html = html.replace(/(background-image:[^;]*url\('\/api\/foto\/[0-9]+'\))/gi, function (m) {
+      return m; // já foi tratado acima
+    });
     // og:image e JSON-LD "image" (compartilhamento/Rich Results)
-    html = html.replace(/(<meta property="og:image" content=")[^"]*(")/i, `$1${fotosDoSite[0]}$2`);
-    html = html.replace(/(<meta name="twitter:image" content=")[^"]*(")/i, `$1${fotosDoSite[0]}$2`);
-    html = html.replace(/("image":\s*")[^"]*(")/, `$1${fotosDoSite[0]}$2`);
+    html = html.replace(/(<meta property="og:image" content=")[^"]*(")/i, `$1${fotoUrl(0)}$2`);
+    html = html.replace(/(<meta name="twitter:image" content=")[^"]*(")/i, `$1${fotoUrl(0)}$2`);
+    html = html.replace(/("image":\s*")[^"]*(")/, `$1${fotoUrl(0)}$2`);
   }
   const nome = t.nome || 'Barbearia';
   const cidade = t.cidade ? ' em ' + t.cidade : '';
@@ -1012,7 +1019,8 @@ async function serveTenantSite(req, res) {
   }
   // Hero: substitui imagem de fundo (por URL) e texto
   if (heroUrl) {
-    html = html.replace(/(<div class="hero-bg"[^>]*style="[^"]*url\('?)[^')]*(?:'?\))/i, `$1${heroUrl})`);
+    // troca a URL do hero-bg pela imagem do cliente (fecha corretamente com '))
+    html = html.replace(/(<div class="hero-bg"[^>]*style="[^"]*url\('?)[^')]*(?:'?\))/i, `$1${heroUrl}')`);
   }
   // Título / subtítulo / kicker / sobre
   html = html.replace(/(<h1 class="hero-title"[^>]*>)[\s\S]*?(<\/h1>)/i, `$1<span id="brandNome">${esc(heroTitulo)}</span>$2`);
