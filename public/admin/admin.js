@@ -949,7 +949,7 @@
       '</div>' +
       '<label class="field"><span>Logo (clique p/ enviar)</span><input type="file" id="pLogo" accept="image/*" /></label>' +
       '<label class="field"><span>Imagem de fundo (topo)</span><input type="file" id="pHeroImg" accept="image/*" /></label>' +
-      '<label class="field"><span>Vídeo de fundo (opcional, max ~5MB)</span><input type="file" id="pVideo" accept="video/*" /></label>' +
+      '<label class="field"><span>Vídeo de fundo (opcional, até ~15MB)</span><input type="file" id="pVideo" accept="video/*" /></label>' +
       '</div>' +
       '<div style="margin-top:1rem;display:flex;gap:.6rem;justify-content:flex-end;">' +
         '<button class="btn btn-ghost" data-custom-cancel>Cancelar</button>' +
@@ -976,36 +976,40 @@
         var e=document.querySelector(sel);
         if (!e || !e.files || !e.files[0]) return res(undefined);
         var f=e.files[0];
-        // Se for imagem, comprime/redimensiona no navegador (corta capturas PNG gigantes p/ ~200KB)
+        // Se for imagem: lê como data URL (permitido pela CSP) e comprime/redimensiona
         if (/^image\//.test(f.type)) {
-          var img=new Image();
-          var url=URL.createObjectURL(f);
-          img.onload=function(){
-            // máx dimensão, mantém proporção
-            var maxDim = (sel === '#pHeroImg' || sel === '#pHeroImg' ) ? 1600 : 600;
-            var w=img.width, h=img.height;
-            var scale=Math.min(1, maxDim/Math.max(w,h));
-            var cw=Math.round(w*scale), ch=Math.round(h*scale);
-            var cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
-            var cx=cv.getContext('2d');
-            cx.drawImage(img,0,0,cw,ch);
-            var out=cv.toDataURL('image/jpeg',0.82);
-            URL.revokeObjectURL(url);
-            var kb=Math.round(out.length*0.75/1024);
-            // se ainda > max, tenta qualidade menor
-            if (out.length>max) { out=cv.toDataURL('image/jpeg',0.6); }
-            res(out);
+          var fr=new FileReader();
+          fr.onload=function(){
+            var dataUrl=fr.result;
+            var img=new Image();
+            img.onload=function(){
+              try {
+                var maxDim = (sel === '#pHeroImg' || sel === '#pHeroImg') ? 1600 : 600;
+                var scale=Math.min(1, maxDim/Math.max(img.width, img.height));
+                var cw=Math.round(img.width*scale), ch=Math.round(img.height*scale);
+                var cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
+                var cx=cv.getContext('2d');
+                // fundo claro para PNG transparente não virar preto no JPEG
+                cx.fillStyle='#ffffff'; cx.fillRect(0,0,cw,ch);
+                cx.drawImage(img,0,0,cw,ch);
+                var out=cv.toDataURL('image/jpeg',0.82);
+                if (out.length > max) { out=cv.toDataURL('image/jpeg',0.55); }
+                res(out);
+              } catch (e2) { rej(new Error('Não foi possível processar a imagem.')); }
+            };
+            img.onerror=function(){ rej(new Error('Não foi possível ler a imagem. Use um arquivo JPG ou PNG comum.')); };
+            img.src=dataUrl;
           };
-          img.onerror=function(){ URL.revokeObjectURL(url); rej(new Error('Não foi possível ler a imagem.')); };
-          img.src=url;
+          fr.onerror=function(){ rej(new Error('Erro ao ler o arquivo.')); };
+          fr.readAsDataURL(f);
           return;
         }
         // Vídeo: valida tamanho e lê como base64
-        if (f.size > max) return rej(new Error('Vídeo muito grande (máx ' + Math.round(max/1024/1024) + 'MB). Envie um vídeo menor ou comprima-o.'));
-        var fr=new FileReader();
-        fr.onload=function(){ res(fr.result); };
-        fr.onerror=function(){ rej(new Error('Erro ao ler arquivo.')); };
-        fr.readAsDataURL(f);
+        if (f.size > max) return rej(new Error('Vídeo muito grande (máx ' + Math.round(max/1024/1024) + 'MB). Comprima-o ou use um mais curto.'));
+        var frv=new FileReader();
+        frv.onload=function(){ res(frv.result); };
+        frv.onerror=function(){ rej(new Error('Erro ao ler o arquivo.')); };
+        frv.readAsDataURL(f);
       });
     }
   }
