@@ -271,7 +271,12 @@ app.get('/api/config', rlGeral, (req, res) => {
     barbearia: {
       nome: t.nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco,
       cidade: t.cidade, estado: t.estado, cep: t.cep, horario: t.horario,
-      tema: t.tema, cor_primaria: t.cor_primaria || '#C9A86A', plano: t.plano,
+      tema: t.tema, cor_primaria: t.cor_primaria || '#C9A86A', cor_secundaria: t.cor_secundaria || '#B08D57',
+      plano: t.plano,
+      slogan: t.slogan || '', hero_titulo: t.hero_titulo || '', hero_sub: t.hero_sub || '',
+      sobre_texto: t.sobre_texto || '', logo: t.logo || '', video_hero: t.video_hero || '',
+      hero_imagem: t.hero_imagem || '',
+      tem_midia: true,
     },
   });
 });
@@ -832,6 +837,72 @@ app.put('/api/master/tenants/:id', requireAuth, requireTenantOwner, async (req, 
   res.json({ ok: true });
 });
 
+// Detalhe completo de uma barbearia (para o painel de personalização do master)
+app.get('/api/master/tenants/:id', requireAuth, requireTenantOwner, async (req, res) => {
+  if (!pool) return semBanco(res);
+  if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
+  const id = String(req.params.id);
+  const r = await pool.query('SELECT * FROM barbershops WHERE id=$1', [id]);
+  if (!r.rows.length) return res.status(404).json({ ok: false, error: 'Barbearia não encontrada.' });
+  const t = r.rows[0];
+  const servicos = await pool.query('SELECT * FROM servicos WHERE tenant_id=$1 ORDER BY ordem, nome', [id]);
+  const fotos = await pool.query('SELECT id, categoria, tipo, criado_em FROM fotos WHERE tenant_id=$1 ORDER BY id DESC', [id]);
+  const faq = await pool.query('SELECT * FROM faq WHERE tenant_id=$1 ORDER BY ordem, id', [id]);
+  // remove strings gigantes (logo/base64) da resposta para não pesar; envia só presença
+  const resumo = { ...t, logo: t.logo ? 'presente' : null, video_hero: t.video_hero ? t.video_hero.slice(0,50)+'…' : null, hero_imagem: t.hero_imagem ? 'presente' : null };
+  res.json({ ok: true, tenant: resumo, servicos: servicos.rows, fotos: fotos.rows, faq: faq.rows });
+});
+
+// Personalizar o site de um cliente (logo, vídeo, imagem, textos, cores, dados)
+app.put('/api/master/tenants/:id/personalizar', requireAuth, requireTenantOwner, async (req, res) => {
+  if (!pool) return semBanco(res);
+  if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
+  const id = String(req.params.id);
+  const b = req.body || {};
+  // valida limite de mídias (evita payload gigante)
+  const limita = (val, max) => {
+    if (val === undefined || val === null || val === '') return val;
+    if (String(val).startsWith('data:') && String(val).length > max) {
+      throw new Error('mídia muito grande (máx. ' + Math.round(max / 1024 / 1024) + 'MB)');
+    }
+    return String(val);
+  };
+  const so = (v, n) => (v === undefined || v === null ? undefined : String(v).slice(0, n));
+  let midias = {};
+  try {
+    midias = {
+      logo: limita(b.logo, 700000),
+      hero_imagem: limita(b.hero_imagem, 1200000),
+      video_hero: limita(b.video_hero, 6000000),
+    };
+  } catch (e) { return res.status(400).json({ ok: false, error: e.message }); }
+  const cols = [
+    ['nome', so(b.nome, 80)], ['whatsapp', so(b.whatsapp, 20)?.replace(/\D/g, '')],
+    ['instagram', so(b.instagram, 80)], ['endereco', so(b.endereco, 240)],
+    ['cidade', so(b.cidade, 80)], ['estado', so(b.estado, 4)], ['cep', so(b.cep, 12)],
+    ['cor_primaria', so(b.cor_primaria, 20)], ['cor_secundaria', so(b.cor_secundaria, 20)],
+    ['slogan', so(b.slogan, 140)], ['hero_titulo', so(b.hero_titulo, 80)],
+    ['hero_sub', so(b.hero_sub, 200)], ['sobre_texto', so(b.sobre_texto, 1200)],
+    ['tema', so(b.tema, 20)],
+    ['logo', midias.logo], ['hero_imagem', midias.hero_imagem], ['video_hero', midias.video_hero],
+  ];
+  const setClause = [];
+  const params = [];
+  let qi = 0;
+  for (const [col, val] of cols) {
+    if (val !== undefined) { qi++; params.push(val); setClause.push(`${col}=$${qi}`); }
+  }
+  if (!setClause.length) return res.status(400).json({ ok: false, error: 'Nada para alterar.' });
+  params.push(id);
+  const q = `UPDATE barbershops SET ${setClause.join(', ')}, updated_at=now() WHERE id=$${params.length}`;
+  try {
+    await pool.query(q, params);
+    invalidarTenant(id); // reflete na hora
+    registrarLog(req, 'master', 'personalizou', `Tenant ${id}`);
+    res.json({ ok: true });
+  } catch (e) { console.error('[personalizar]', e.message); res.status(500).json({ ok: false, error: 'Erro ao salvar.' }); }
+});
+
 /* ============================ PÁGINAS ============================ */
 // Landings / painel / blocos de caminho sensíveis
 const CAMINHOS_SENSIVEIS = /^\/(\.env|\.git|server\.js|package(-lock)?\.json|db\/|node_modules|render\.yaml|\.gitignore|Procfile|migration)/i;
@@ -848,18 +919,67 @@ function serveTenantSite(req, res) {
   const t = req.tenant;
   const nome = t.nome || 'Barbearia';
   const cidade = t.cidade ? ' em ' + t.cidade : '';
-  const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: t.cor_primaria || '#C9A86A', slug: t.slug });
+  const cor1 = t.cor_primaria || '#C9A86A';
+  const cor2 = t.cor_secundaria || '#B08D57';
+  // hero: usa imagem/vídeo do cliente; senão mantém o padrão (genérico, não da Art na Régua)
+  const heroImg = t.hero_imagem && t.hero_imagem.startsWith('data:') ? t.hero_imagem : (t.hero_imagem || '');
+  const heroTitulo = t.hero_titulo || nome;
+  const heroSub = t.hero_sub || 'Corte, barba e estilo com acabamento impecável. Agende pelo WhatsApp.';
+  const slogan = t.slogan ? `<span class="hero-kicker" data-reveal>${esc(t.slogan)}</span>` : `<span class="hero-kicker" data-reveal>${esc(cidade ? 'Barbearia em ' + (t.cidade||'') : 'Barbearia')}</span>`;
+  const sobre = t.sobre_texto || `Na ${esc(nome)}, cada atendimento é feito com atenção total. O objetivo é simples — você sair se sentindo a melhor versão de si.`;
+  const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: cor1, cor_secundaria: cor2, slug: t.slug, slogan: t.slogan||'', hero_titulo: heroTitulo, hero_sub: heroSub, sobre_texto: t.sobre_texto||'', logo: t.logo||'' });
   // Título e meta dinâmicos por tenant (SEO / aba do navegador / compartilhamento)
-  const titulo = `${nome} — Barbearia${cidade} | Corte, Barba e Estilo`;
+  const titulo = `${heroTitulo}${cidade} | Corte, Barba e Estilo`;
   html = html.replace(/<title>.*?<\/title>/i, `<title>${esc(titulo)}</title>`);
-  html = html.replace(/(<meta name="description" content=")[^"]*(")/i, `$1${esc(titulo + '. Agende pelo WhatsApp (' + (t.whatsapp || '') + ').')}$2`);
+  html = html.replace(/(<meta name="description" content=")[^"]*(")/i, `$1${esc(titulo + '. ' + heroSub)}$2`);
   html = html.replace(/(<meta property="og:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
   html = html.replace(/(<meta property="og:site_name" content=")[^"]*(")/i, `$1${esc(nome)}$2`);
   html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
-  // Marca visível no H1/hero e no rodapé
-  html = html.replace(/(<h1 class="hero-title"[^>]*>)[\s\S]*?(<\/h1>)/i, `$1<span id="brandNome">${esc(nome)}</span>$2`);
+  // Logo do cliente (substitui o ícone padrão da Art na Régua onde houver)
+  if (t.logo && t.logo.startsWith('data:')) {
+    html = html.replace(/<img class="logo-mark"[^>]*>/i, `<img class="logo-mark" src="${t.logo}" alt="${esc(nome)}" />`);
+    html = html.replace(/<img class="logo-mark"[^>]*>/gi, html.match(/<img class="logo-mark"[^>]*>/i) || '');
+    html = html.replace(/<img class=".logo-mark."[^>]*>/ig, `<img class="logo-mark" src="${t.logo}" alt="${esc(nome)}" />`);
+    // rodapé
+    html = html.replace(/<img src="\/images\/logo-icon\.png"[^>]*>/i, `<img src="${t.logo}" alt="${esc(nome)}" />`);
+  }
+  // Hero: substitui imagem de fundo e texto
+  if (heroImg && heroImg.startsWith('data:')) {
+    html = html.replace(/(\.hero-bg" style="background-image:url\('?)[^')]*(?:'?\))/i, `$1${heroImg})`);
+  }
+  html = html.replace(/(<div class="hero-bg"[^>]*style="[^"]*url\('?)[^')]*(?:'?\))/i, `$1${heroImg})`);
+  // Título / subtítulo / kicker / sobre
+  html = html.replace(/(<h1 class="hero-title"[^>]*>)[\s\S]*?(<\/h1>)/i, `$1<span id="brandNome">${esc(heroTitulo)}</span>$2`);
+  html = html.replace(/(<p class="hero-desc"[^>]*>)[\s\S]*?(<\/p>)/i, `$1${esc(heroSub)}$2`);
+  html = html.replace(/(<p class="hero-kicker"[^>]*>)[\s\S]*?(<\/p>)/i, slogan);
+  html = html.replace(/(<p class="kicker"[^>]*>Por que a )[^<]*(<\/p>)/, `$1${esc(nome)}$2`);
+  // Sobre: troca o(s) parágrafo(s) de "sobre" da marca genérica pelo texto do cliente
+  html = html.replace(/(<p>Na Art na Régua[\s\S]*?<\/p>)/, `<p>${esc(sobre)}</p>`);
   html = html.replace(/© 2026 Art na Régua\./gi, `© 2026 ${esc(nome)}.`);
-  html = html.replace('<title></title>', `<title>${esc(titulo)}</title>`);
+  // Remove QUALQUER resíduo da marca padrão (Art na Régua / "na régua") no site do cliente,
+  // inclusive em caixas variadas. Substitui por termos neutros ou pelo nome do cliente.
+  html = html.replace(/Art\s+na\s+R[eé]gua/gi, esc(nome));
+  // frases fixas do template que citam "na régua"
+  html = html.replace(/Precis[ãa]o "na r[eé]gua"/gi, 'Precisão no corte');
+  html = html.replace(/O corte sai na r[eé]gua/gi, 'O corte sai no ponto');
+  html = html.replace(/o corte sai na r[eé]gua/gi, 'o corte sai no ponto');
+  html = html.replace(/corte sai na r[eé]gua/gi, 'corte sai no ponto');
+  html = html.replace(/na r[eé]gua\s*[—]?\s*n[ãa]o é s[óo] um nome/gi, 'não é só um nome');
+  html = html.replace(/nã[oa] é s[óo] um nome\s*[—]?\s*é a forma como cada corte sai daqui/gi, 'é a forma como cada corte sai daqui');
+  html = html.replace(/N[ãa] r[eé]gua/gi, esc(nome));
+  html = html.replace(/na r[eé]gua/gi, 'no ponto');
+  html = html.replace(/A r[eé]gua/gi, 'A régua'); // mantém se for nome próprio residual
+  // Cores do tema: mapeia a cor do cliente para as variáveis douradas do layout
+  // (calcula tom claro e escuro a partir da cor primária escolhida)
+  let r=200,g=161,b=92;
+  const m=/#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(cor1);
+  if (m){r=parseInt(m[1],16);g=parseInt(m[2],16);b=parseInt(m[3],16);}
+  const mistura=(alvo,peso)=>{const c=(a)=>Math.round(a+(alvo-a)*peso);return `rgb(${c(r)},${c(g)},${c(b)})`;};
+  const claro = cor1;
+  const bemClaro = mistura(255, 0.35);
+  const escuro = mistura(0, 0.28);
+  const corVar = `:root{--dourado:${claro};--dourado-claro:${bemClaro};--dourado-escuro:${escuro};}`;
+  html = html.replace('</head>', `<style>${corVar}</style></head>`);
   html = html.replace('</head>', `<script>window.BRB_TENANT=${cfg};</script></head>`);
   res.setHeader('Content-Type', 'text/html; charset=UTF-8');
   res.setHeader('Cache-Control', 'no-store'); // nunca cachear: bloqueio/ativação reflete na hora

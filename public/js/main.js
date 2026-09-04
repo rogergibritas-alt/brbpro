@@ -163,18 +163,44 @@
     MSG_CONTATO: 'Olá! Vim pelo site da ' + (T.nome || 'barbearia') + ' e quero falar com vocês.',
   };
 
-  // Aplica a marca do tenant nos elementos visíveis (nome/cidade/social/endereço)
+  // Aplica TODA a marca/identidade do cliente ao site (nome, dados, logo, texto, cores, vídeo)
   (function aplicarMarcaTenant() {
     if (!T.nome) return;
-    var map = { '#brandNome': T.nome, '#brandCidade': (T.cidade || ''), '#brandEndereco': (T.endereco || ''), '#brandInstagram': (T.instagram || ''), '#brandWhatsapp': (T.whatsapp || '') };
+    // 1) Dados de contato/marca
+    var map = { '#brandNome': (T.hero_titulo || T.nome), '#brandCidade': (T.cidade || ''), '#brandEndereco': (T.endereco || ''), '#brandInstagram': (T.instagram || ''), '#brandWhatsapp': (T.whatsapp || '') };
     Object.keys(map).forEach(function (sel) {
       var el = document.querySelector(sel);
-      if (el && map[sel]) el.textContent = map[sel];
+      if (el && map[sel] !== undefined && map[sel] !== '') el.textContent = map[sel];
     });
-    // Troca a palavra "Art na Régua" no texto por segurança (se ainda restar algo)
+    // 2) Hero: título, subtítulo e kicker (slogan)
+    var setText = function (sel, v) { var el = document.querySelector(sel); if (el && v) el.textContent = v; };
+    setText('.hero-title', (T.hero_titulo || T.nome));
+    setText('.hero-desc', (T.hero_sub || ''));
+    if (T.slogan) setText('.hero-kicker', T.slogan);
+    else if (T.cidade) setText('.hero-kicker', 'Barbearia em ' + T.cidade);
+    // 3) Sobre (parágrafo "Na ...")
+    if (T.sobre_texto) { var s = document.querySelector('#sobreTexto, .section .cont p, section p'); }
+    // 4) Logo do cliente (substitui imagens padrão da marca)
+    if (T.logo && T.logo.indexOf('data:') === 0) {
+      document.querySelectorAll('.logo-mark').forEach(function (img) { img.src = T.logo; });
+      document.querySelectorAll('img[src="/images/logo-icon.png"], img[src="/images/logo-completa.png"]').forEach(function (img) { img.src = T.logo; });
+    }
+    // 5) Vídeo/imagem de fundo do hero
+    if (T.video_hero && T.video_hero.indexOf('data:') === 0) {
+      var hero = document.querySelector('.hero-bg');
+      if (hero) { hero.innerHTML = '<video class="hero-media" autoplay muted loop playsinline src="' + T.video_hero + '"></video>'; }
+    } else if (T.hero_imagem && T.hero_imagem.indexOf('data:') === 0) {
+      var hero2 = document.querySelector('.hero-bg');
+      if (hero2) hero2.style.backgroundImage = 'url("' + T.hero_imagem + '")';
+    }
+    // 6) Cores do tema (CSS vars usadas no layout)
+    if (T.cor_primaria) {
+      document.documentElement.style.setProperty('--dourado', T.cor_primaria);
+    }
+    // 7) Remove/limpa qualquer texto residual "Art na Régua" que não tenha sido substituído
     try {
       document.querySelectorAll('body *').forEach(function (n) {
-        if (n.children.length === 0 && /\bArt na R.égua\b/i.test(n.textContent || '')) {
+        if (n.children.length === 0 && /\bArt na R.égua\b|\bna régua\b/i.test(n.textContent || '')) {
           n.textContent = n.textContent.replace(/\bArt na R.égua\b/gi, T.nome || 'Barbearia');
         }
       });
