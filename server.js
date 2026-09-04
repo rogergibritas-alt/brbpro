@@ -404,7 +404,7 @@ app.post('/api/contato', rlGeral, async (req, res) => {
 app.get('/api/fotos/categorias', rlGeral, async (req, res) => {
   if (!pool) return semBanco(res);
   if (!req.tenantId) return res.status(400).json({ ok: false, error: 'Barbearia não identificada.' });
-  const r = await pool.query('SELECT categoria, COUNT(*)::int AS qtd, MAX(id) AS capa_id FROM fotos WHERE tenant_id=$1 GROUP BY categoria ORDER BY categoria', [req.tenantId]);
+  const r = await pool.query('SELECT categoria, COUNT(*)::int AS qtd, MAX(id::text) AS capa_id FROM fotos WHERE tenant_id=$1 GROUP BY categoria ORDER BY categoria', [req.tenantId]);
   res.json({ ok: true, categorias: r.rows });
 });
 app.get('/api/fotos', rlGeral, async (req, res) => {
