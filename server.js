@@ -972,6 +972,12 @@ function serveTenantSite(req, res) {
     html = html.replace(/<img class="logo-mark"[^>]*>/i, `<img class="logo-mark" src="${logoUrl}" alt="${esc(nome)}" />`);
     html = html.replace(/<img src="\/images\/logo-icon\.png"[^>]*>/i, `<img src="${logoUrl}" alt="${esc(nome)}" />`);
   }
+  // Marca no menu: substitui o texto "Art<span> na Régua</span>" (com tag no meio) pelo nome do cliente
+  html = html.replace(/Art<span> na R.égua<\/span>/i, esc(nome));
+  // Se tiver logo, esconde o texto do menu (a logo já é a marca) e ajusta o tamanho do logo-mark
+  if (logoUrl) {
+    html = html.replace(/(<a class="nav-logo"[^>]*>)/, `$1<style>@media(min-width:760px){.nav-logo .logo-mark{height:46px;width:auto;}.nav-logo{font-size:0;}}.nav-logo .logo-mark{height:34px;width:auto;}</style>`);
+  }
   // Hero: substitui imagem de fundo (por URL) e texto
   if (heroUrl) {
     html = html.replace(/(<div class="hero-bg"[^>]*style="[^"]*url\('?)[^')]*(?:'?\))/i, `$1${heroUrl})`);
