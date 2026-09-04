@@ -180,18 +180,19 @@
     else if (T.cidade) setText('.hero-kicker', 'Barbearia em ' + T.cidade);
     // 3) Sobre (parágrafo "Na ...")
     if (T.sobre_texto) { var s = document.querySelector('#sobreTexto, .section .cont p, section p'); }
-    // 4) Logo do cliente (substitui imagens padrão da marca)
-    if (T.logo && T.logo.indexOf('data:') === 0) {
-      document.querySelectorAll('.logo-mark').forEach(function (img) { img.src = T.logo; });
-      document.querySelectorAll('img[src="/images/logo-icon.png"], img[src="/images/logo-completa.png"]').forEach(function (img) { img.src = T.logo; });
+    // 4) Logo do cliente (por URL)
+    if (T.logo_url) {
+      document.querySelectorAll('.logo-mark').forEach(function (img) { img.src = T.logo_url; });
+      document.querySelectorAll('img[src="/images/logo-icon.png"], img[src="/images/logo-completa.png"]').forEach(function (img) { img.src = T.logo_url; });
+      document.querySelectorAll('img[src^="/m/"], img[src="' + T.logo_url + '"]').forEach(function (img) { img.src = T.logo_url; });
     }
-    // 5) Vídeo/imagem de fundo do hero
-    if (T.video_hero && T.video_hero.indexOf('data:') === 0) {
+    // 5) Vídeo/imagem de fundo do hero (por URL)
+    if (T.video_url) {
       var hero = document.querySelector('.hero-bg');
-      if (hero) { hero.innerHTML = '<video class="hero-media" autoplay muted loop playsinline src="' + T.video_hero + '"></video>'; }
-    } else if (T.hero_imagem && T.hero_imagem.indexOf('data:') === 0) {
+      if (hero) { hero.innerHTML = '<video class="hero-media" autoplay muted loop playsinline src="' + T.video_url + '"></video>'; }
+    } else if (T.hero_url) {
       var hero2 = document.querySelector('.hero-bg');
-      if (hero2) hero2.style.backgroundImage = 'url("' + T.hero_imagem + '")';
+      if (hero2) hero2.style.backgroundImage = 'url("' + T.hero_url + '")';
     }
     // 6) Cores do tema (CSS vars usadas no layout)
     if (T.cor_primaria) {

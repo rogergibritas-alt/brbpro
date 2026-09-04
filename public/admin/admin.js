@@ -961,9 +961,9 @@
       var body = { nome: val('#pNome'), whatsapp: val('#pWhats'), instagram: val('#pInsta'), endereco: val('#pEnd'), cidade: val('#pCidade'), slogan: val('#pSlogan'), hero_titulo: val('#pHeroT'), hero_sub: val('#pHeroS'), sobre_texto: val('#pSobre'), cor_primaria: val('#pCorP'), cor_secundaria: val('#pCorS'), tema: 'dark' };
       toast('Enviando e publicando...');
       try {
-        body.logo = await lerArquivo('#pLogo', 700000);
-        body.hero_imagem = await lerArquivo('#pHeroImg', 1200000);
-        body.video_hero = await lerArquivo('#pVideo', 6000000);
+        body.logo = await lerArquivo('#pLogo', 250000);       // comprimido p/ ~600px, ~180KB
+        body.hero_imagem = await lerArquivo('#pHeroImg', 1500000); // comprimido p/ ~1600px
+        body.video_hero = await lerArquivo('#pVideo', 15000000);   // vídeos até ~15MB
       } catch (e) { toast(e.message); return; }
       var r = await api('/api/master/tenants/' + id + '/personalizar', { method: 'PUT', body: JSON.stringify(body) });
       if (r.ok) { toast('Site personalizado e publicado! ✅'); fecharModal(); }
@@ -976,7 +976,32 @@
         var e=document.querySelector(sel);
         if (!e || !e.files || !e.files[0]) return res(undefined);
         var f=e.files[0];
-        if (f.size > max) return rej(new Error('Arquivo muito grande (máx ' + Math.round(max/1024/1024) + 'MB).'));
+        // Se for imagem, comprime/redimensiona no navegador (corta capturas PNG gigantes p/ ~200KB)
+        if (/^image\//.test(f.type)) {
+          var img=new Image();
+          var url=URL.createObjectURL(f);
+          img.onload=function(){
+            // máx dimensão, mantém proporção
+            var maxDim = (sel === '#pHeroImg' || sel === '#pHeroImg' ) ? 1600 : 600;
+            var w=img.width, h=img.height;
+            var scale=Math.min(1, maxDim/Math.max(w,h));
+            var cw=Math.round(w*scale), ch=Math.round(h*scale);
+            var cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
+            var cx=cv.getContext('2d');
+            cx.drawImage(img,0,0,cw,ch);
+            var out=cv.toDataURL('image/jpeg',0.82);
+            URL.revokeObjectURL(url);
+            var kb=Math.round(out.length*0.75/1024);
+            // se ainda > max, tenta qualidade menor
+            if (out.length>max) { out=cv.toDataURL('image/jpeg',0.6); }
+            res(out);
+          };
+          img.onerror=function(){ URL.revokeObjectURL(url); rej(new Error('Não foi possível ler a imagem.')); };
+          img.src=url;
+          return;
+        }
+        // Vídeo: valida tamanho e lê como base64
+        if (f.size > max) return rej(new Error('Vídeo muito grande (máx ' + Math.round(max/1024/1024) + 'MB). Envie um vídeo menor ou comprima-o.'));
         var fr=new FileReader();
         fr.onload=function(){ res(fr.result); };
         fr.onerror=function(){ rej(new Error('Erro ao ler arquivo.')); };
