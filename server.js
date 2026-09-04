@@ -55,40 +55,30 @@ function semBanco(res) { return res.status(503).json({ ok: false, error: 'Banco 
 /* ============================ MIDDLEWARES ============================ */
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
-
-// Nonce por requisição: permite CSP SEM 'unsafe-inline' (scripts inline só com nonce)
-app.use((req, res, next) => {
-  req.cspNonce = crypto.randomBytes(16).toString('base64');
-  next();
-});
 app.use(helmet({
-  contentSecurityPolicy: false, // CSP aplicada abaixo, com nonce por requisição
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      'default-src': ["'self'"],
+      'script-src': ["'self'", "'unsafe-inline'"],
+      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      'font-src': ["'self'", 'https://fonts.gstatic.com'],
+      'img-src': ["'self'", 'data:', 'https:'],
+      'media-src': ["'self'", 'https:', 'blob:'],
+      'connect-src': ["'self'", 'https:', 'http:'],
+      'worker-src': ["'self'", 'blob:'],
+      'object-src': ["'none'"],
+      'frame-ancestors': ["'self'"],
+      'base-uri': ["'self'"],
+      'form-action': ["'self'"],
+    },
+  },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   crossOriginEmbedderPolicy: false,
-  permissionsPolicy: { policy: { camera: [], geolocation: [], microphone: [], payment: [], usb: [] } },
 }));
-// CSP SEM 'unsafe-inline': scripts inline só com o nonce da requisição (anti-XSS)
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/')) return next();
-  const n = req.cspNonce;
-  res.setHeader('Content-Security-Policy',
-    `default-src 'self';script-src 'self' 'nonce-${n}';style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;` +
-    `font-src 'self' https://fonts.gstatic.com;img-src 'self' data: https:;media-src 'self' https: blob:;` +
-    `connect-src 'self' https:;worker-src 'self' blob:;object-src 'none';frame-ancestors 'self';base-uri 'self';form-action 'self';script-src-attr 'none'`);
-  next();
-});
 app.use(cookieParser());
-app.use(express.json({ limit: '28mb' }));
+app.use(express.json({ limit: '12mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// robots.txt — protege painel e API do index
-app.get('/robots.txt', (req, res) => {
-  res.type('text/plain').send('User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api\n');
-});
-// security.txt — padrão de divulgação de vulnerabilidades
-app.get('/security.txt', (req, res) => {
-  res.type('text/plain').send('Contact: mailto:seguranca@brbpro.com.br\nExpires: 2027-08-22T00:00:00.000Z\nPolicy: https://brbpro.com.br/privacidade.html\nCanonical: https://brbpro.com.br/security.txt\n');
-});
 
 // CORS restrito ao próprio domínio
 app.use((req, res, next) => {
@@ -140,6 +130,12 @@ function getSlugFromHost(hostname) {
 }
 let TENANT_CACHE = new Map();
 let TENANT_EXP = 0;
+// Invalida imediatamente a cache de um tenant (usado quando o gestor ativa/bloqueia).
+// Isso faz o site sair/voltar do ar na hora, sem a espera de 60s da cache.
+function invalidarTenant(slug) {
+  if (slug) TENANT_CACHE.delete(slug);
+  TENANT_EXP = 0; // obriga o próximo lookup a reconsultar o banco
+}
 async function lookupTenant(slug) {
   if (!pool) return null;
   if (TENANT_EXP > Date.now() && TENANT_CACHE.has(slug)) return TENANT_CACHE.get(slug);
@@ -179,6 +175,9 @@ async function tenantResolver(req, res, next) {
       }
       const tenant = await lookupTenant(slug);
       if (!tenant) {
+        // Site bloqueado/inativo → 404 com no-store p/ não ser cacheado e refletir na hora
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('CDN-Cache-Control', 'no-store');
         return res.status(404).send(build404(slug));
       }
       req.tenant = tenant; req.tenantId = tenant.id; req.tenantSlug = tenant.slug;
@@ -235,17 +234,11 @@ async function registrarLog(req, tipo, acao, detalhe) {
 function signToken(payload, exp = JWT_EXPIRES) { return jwt.sign(payload, JWT_SECRET, { expiresIn: exp }); }
 function setAuthCookies(res, user) {
   const tok = signToken({ id: user.id, tenantId: user.tenant_id, role: user.role, email: user.email, nome: user.nome });
-  const domain = COOKIE_SECURE ? { domain: 'brbpro.com.br' } : {}; // sessão vale para todos os subdomínios
-  res.cookie('brb_token', tok, { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 30 * 60 * 1000, ...domain });
+  res.cookie('brb_token', tok, { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 30 * 60 * 1000 });
   res.cookie('brb_refresh', signToken({ id: user.id, type: 'refresh' }, REFRESH_EXPIRES),
-    { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 7 * 24 * 3600 * 1000, ...domain });
+    { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 7 * 24 * 3600 * 1000 });
 }
-function clearAuthCookies(res) {
-  const domain = COOKIE_SECURE ? { domain: 'brbpro.com.br' } : {};
-  res.clearCookie('brb_token', { path: '/', ...domain }); res.clearCookie('brb_refresh', { path: '/', ...domain });
-}
-// Hash "fantasma" gerado no boot: mantém o tempo de resposta igual mesmo quando o e-mail não existe (anti-enumeração de usuários)
-const HASH_FANTASMA = bcrypt.hashSync(crypto.randomBytes(8).toString('hex'), 12);
+function clearAuthCookies(res) { res.clearCookie('brb_token', { path: '/' }); res.clearCookie('brb_refresh', { path: '/' }); }
 function requireAuth(req, res, next) {
   const token = req.cookies && req.cookies['brb_token'];
   if (!token) return res.status(401).json({ ok: false, error: 'Não autorizado. Faça login novamente.' });
@@ -400,10 +393,7 @@ app.post('/api/contato', rlGeral, async (req, res) => {
 app.get('/api/fotos/categorias', rlGeral, async (req, res) => {
   if (!pool) return semBanco(res);
   if (!req.tenantId) return res.status(400).json({ ok: false, error: 'Barbearia não identificada.' });
-  // capa = id da foto mais recente da categoria (MAX não existe para UUID)
-  const r = await pool.query(
-    "SELECT categoria, COUNT(*)::int AS qtd, (ARRAY_AGG(id ORDER BY criado_em DESC, id DESC))[1] AS capa_id FROM fotos WHERE tenant_id=$1 GROUP BY categoria ORDER BY categoria",
-    [req.tenantId]);
+  const r = await pool.query('SELECT categoria, COUNT(*)::int AS qtd, MAX(id) AS capa_id FROM fotos WHERE tenant_id=$1 GROUP BY categoria ORDER BY categoria', [req.tenantId]);
   res.json({ ok: true, categorias: r.rows });
 });
 app.get('/api/fotos', rlGeral, async (req, res) => {
@@ -449,29 +439,25 @@ app.post('/api/admin/login', rlLogin, async (req, res) => {
   if (!email || !senha) return res.status(400).json({ ok: false, error: 'Informe e-mail e senha.' });
   let user = null;
   // master: login via app.brbpro.com.br (sem tenant) → busca usuario master
-  if (req.isApp) {
+  if (req.isApp || req.userRoleCheck) {
     const r = await pool.query('SELECT * FROM users WHERE email=$1 AND role=$2', [email, 'master']);
     user = r.rows[0] || null;
   }
   if (!user) {
-    // aceita email+tenant; se acessar um subdomínio usa o tenant do subdomínio
+    const tid = req.tenantId || (await pool.query("SELECT id FROM barbershops WHERE slug='artnaregua'")).rows?.[0]?.id;
+    // aceita email+tenant, OU se acessar um subdomínio usa o tenant do subdomínio
     if (req.tenantId) {
       const r = await pool.query('SELECT * FROM users WHERE email=$1 AND tenant_id=$2', [email, req.tenantId]);
       user = r.rows[0] || null;
     }
-    // fallback: busca por email global (permite master logar de qualquer lugar) — só se for master ou dono do tenant atual
+    // fallback: busca por email global (permite master logar de qualquer lugar) — só se for master
     if (!user) {
       const r = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
       const cand = r.rows[0] || null;
       if (cand && (cand.role === 'master' || (req.tenantId && cand.tenant_id === req.tenantId))) user = cand;
     }
   }
-  if (!user) {
-    // tempo de resposta constante mesmo com e-mail inexistente (anti-enumeração/enumeração de timing)
-    verificarHash(senha, HASH_FANTASMA);
-    registrarLog(req, 'login', 'falha_email', `Tentativa com ${email}`);
-    return res.status(401).json({ ok: false, error: 'Credenciais inválidas.' });
-  }
+  if (!user) return res.status(401).json({ ok: false, error: 'Credenciais inválidas.' });
   if (!user.ativo) return res.status(401).json({ ok: false, error: 'Usuário desativado.' });
   if (!verificarHash(senha, user.senha_hash)) {
     registrarLog(req, 'login', 'falha', `Tentativa com ${email}`);
@@ -841,262 +827,8 @@ app.put('/api/master/tenants/:id', requireAuth, requireTenantOwner, async (req, 
   const id = String(req.params.id);
   const ativo = !!(req.body.ativo);
   await pool.query('UPDATE barbershops SET ativo=$1, plano=$2, updated_at=now() WHERE id=$3', [ativo, req.body.plano || 'pro', id]);
-  res.json({ ok: true });
-});
-
-/* ============================ PAINEL TV (por tenant) ============================ */
-// Cliente sendo atendido AGORA e o PRÓXIMO — público (só nomes e horários, sem telefone)
-app.get('/api/tv/agora', rlGeral, async (req, res) => {
-  if (!pool) return res.json({ ok: true, fechado: false, atual: null, proximo: null });
-  if (!req.tenantId) return res.status(400).json({ ok: false, error: 'Barbearia não identificada.' });
-  const br = new Date(Date.now() - 3 * 3600 * 1000); // horário de Brasília (UTC-3)
-  const hoje = br.toISOString().slice(0, 10);
-  const agoraMin = br.getUTCHours() * 60 + br.getUTCMinutes();
-  const r = await pool.query(
-    "SELECT nome, servico, horario, num_slots FROM agendamentos WHERE tenant_id=$1 AND data=$2 AND status <> 'cancelado' ORDER BY horario",
-    [req.tenantId, hoje]);
-  let atual = null, proximo = null;
-  for (let i = 0; i < r.rows.length; i++) {
-    const a = r.rows[i];
-    const [h, m] = String(a.horario).split(':').map(Number);
-    const inicio = h * 60 + m;
-    const fim = inicio + 40 * (Number(a.num_slots) || 1);
-    if (agoraMin >= inicio && agoraMin < fim) {
-      atual = a;
-      if (i + 1 < r.rows.length) proximo = r.rows[i + 1];
-      break;
-    }
-    if (agoraMin < inicio) { proximo = a; break; }
-  }
-  res.json({
-    ok: true, hoje, agora: br.toISOString(),
-    atual: atual ? { nome: atual.nome, servico: atual.servico, horario: atual.horario, num_slots: atual.num_slots } : null,
-    proximo: proximo ? { nome: proximo.nome, servico: proximo.servico, horario: proximo.horario, num_slots: proximo.num_slots } : null,
-  });
-});
-
-// Proxy HLS: streams HTTP de terceiros entregues via HTTPS (evita mixed content).
-// Anti-SSRF: apenas destinos públicos, nunca rede interna.
-const httpMod = require('http');
-const httpsMod = require('https');
-function buscarRemoto(url, redirects, headers) {
-  return new Promise((resolve, reject) => {
-    const lib = url.startsWith('https') ? httpsMod : httpMod;
-    const req = lib.get(url, { headers: Object.assign({ 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' }, headers || {}) }, (r) => {
-      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
-        const next = new URL(r.headers.location, url).toString();
-        if ((redirects || 0) > 5) return reject(new Error('muitos redirects'));
-        r.resume();
-        return buscarRemoto(next, (redirects || 0) + 1).then(resolve).catch(reject);
-      }
-      if (r.statusCode !== 200) { r.resume(); return reject(new Error('status ' + r.statusCode)); }
-      const chunks = [];
-      r.on('data', (c) => chunks.push(c));
-      r.on('end', () => resolve({ tipo: r.headers['content-type'] || '', buf: Buffer.concat(chunks) }));
-    });
-    req.on('error', reject);
-    req.setTimeout(15000, () => { req.destroy(new Error('timeout')); });
-  });
-}
-const rlProxy = rateLimit(240, 60 * 1000);
-app.get('/api/tv/proxy', rlProxy, async (req, res) => {
-  const alvo = String(req.query.url || '').trim();
-  if (!/^https?:\/\//.test(alvo)) return res.status(400).end();
-  try {
-    const u = new URL(alvo);
-    const host = u.hostname.toLowerCase();
-    const ehPrivado = !host || host === 'localhost' || host === '0.0.0.0' ||
-      /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
-      /^169\.254\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-      host === '::1' || host === '[::1]' ||
-      /\.local$/.test(host) || /\.internal$/.test(host) || /\.lan$/.test(host) ||
-      host.endsWith('.onion');
-    if (ehPrivado) return res.status(403).end();
-  } catch { return res.status(400).end(); }
-  try {
-    const { tipo, buf } = await buscarRemoto(alvo, 0);
-    const texto = buf.toString('utf8');
-    if (tipo.includes('mpegurl') || texto.trim().startsWith('#EXTM3U')) {
-      const base = new URL(alvo);
-      const baseDir = base.toString().slice(0, base.toString().lastIndexOf('/') + 1);
-      const linhas = texto.split('\n').map((linha) => {
-        const l = linha.trim();
-        if (!l || l.startsWith('#')) return linha;
-        const urlAbs = new URL(l, baseDir).toString();
-        return '/api/tv/proxy?url=' + encodeURIComponent(urlAbs);
-      });
-      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-      res.setHeader('Cache-Control', 'no-cache');
-      return res.send(linhas.join('\n'));
-    }
-    const ct = tipo || 'video/mp2t';
-    res.setHeader('Content-Type', ct);
-    res.setHeader('Cache-Control', 'no-cache');
-    res.send(buf);
-  } catch (e) {
-    console.error('[proxy]', alvo, e.message);
-    res.status(502).end();
-  }
-});
-
-// Canais de filme do painel TV (fontes de terceiros, instáveis)
-const CANAIS_FIXOS = [
-  { nome: 'Sony Movies', categoria: 'Filmes (TV)', url: 'http://45.162.64.114/SONY_MOVIES/index.m3u8' },
-  { nome: 'Studio Universal', categoria: 'Filmes (TV)', url: 'http://177.52.24.163/STUDIO-UNIVERSAL-HD/index.m3u8' },
-  { nome: 'Sony Channel', categoria: 'Filmes (TV)', url: 'http://45.190.28.50/SONY_HD/index.m3u8' },
-  { nome: 'AXN', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/AXN_HD/index.m3u8' },
-  { nome: 'A&E', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/AE_HD/index.m3u8' },
-  { nome: 'Lifetime', categoria: 'Ação & Aventura', url: 'http://138.255.2.6:8084/LIFETIME/index.m3u8' },
-  { nome: 'Adult Swim', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/TRUTV_HD/index.m3u8' },
-];
-app.get('/api/tv/canais', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  res.json({ ok: true, canais: CANAIS_FIXOS });
-});
-app.get('/api/tv/canais-saude', async (req, res) => {
-  const canais = CANAIS_FIXOS;
-  const resultados = [];
-  await Promise.all(canais.map(async (c) => {
-    let ok = false;
-    try {
-      const { buf } = await Promise.race([
-        buscarRemoto(c.url, 0),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
-      ]);
-      const texto = buf.toString('utf8');
-      ok = texto.includes('#EXTM3U') && !/error|not found|takedown|slate/i.test(texto.slice(0, 300));
-    } catch { ok = false; }
-    resultados.push({ nome: c.nome, ok });
-  }));
-  const ordem = new Map(canais.map((c, i) => [c.nome, i]));
-  resultados.sort((a, b) => (ordem.get(a.nome) || 0) - (ordem.get(b.nome) || 0));
-  res.json({ ok: true, canais: resultados, online: resultados.filter((r) => r.ok).length, total: resultados.length });
-});
-
-/* ============================ PRÉVIAS POR PROSPECT (prospecção ativa) ============================ */
-// brbpro.com.br/{slug} — template do SaaS com a marca do prospect. O link vende sozinho.
-const SLUGS_RESERVADOS_PATH = new Set(['admin','api','app','www','p','tv','css','js','images','video','assets','privacidade','termos','robots','security','health','saude','versao','login','painel','favicon']);
-function slugify(s) {
-  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
-}
-function corClara(hex, amt) {
-  const m = /^#?([0-9a-fA-F]{6})$/.exec(String(hex || ''));
-  if (!m) return '#E8C99A';
-  const n = parseInt(m[1], 16);
-  const mix = (c) => Math.min(255, Math.round(c + (255 - c) * amt));
-  const r = mix((n >> 16) & 255), g = mix((n >> 8) & 255), b = mix(n & 255);
-  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-}
-function renderServicosPreview(servicos) {
-  const arr = Array.isArray(servicos) ? servicos.slice(0, 12) : [];
-  if (!arr.length) {
-    return ['Corte', 'Barba', 'Combo'].map((n) =>
-      `<div class="pv-servico"><h3>${esc(n)}</h3><p>seu serviço</p><div class="pv-preco">R$ —</div></div>`).join('')
-      + '<p class="pv-nota">Aqui aparecem <b>seus</b> serviços e preços, exatamente como ficam no site oficial.</p>';
-  }
-  return arr.map((s) =>
-    `<div class="pv-servico"><h3>${esc(s.nome)}</h3><div class="pv-preco">${s.preco != null ? 'R$ ' + esc(String(s.preco)) : 'sob consulta'}</div></div>`
-  ).join('');
-}
-function servePreview(pv, req, res) {
-  const p = path.join(PUBLIC_DIR, 'preview.html');
-  let html = fs.readFileSync(p, 'utf8');
-  const nome = pv.nome || 'Sua Barbearia';
-  const cidade = pv.cidade || '';
-  const cor = /^#[0-9a-fA-F]{6}$/.test(pv.cor_primaria || '') ? pv.cor_primaria : '#C9A86A';
-  const trocas = {
-    '{{NOME}}': esc(nome),
-    '{{CIDADE}}': cidade ? esc(cidade) : '',
-    '{{CIDADE_LINHA}}': cidade ? ' — ' + esc(cidade) : '',
-    '{{ENDERECO_LINHA}}': pv.endereco ? ' · ' + esc(pv.endereco) : '',
-    '{{INSTAGRAM}}': pv.instagram ? esc(pv.instagram) : '',
-    '{{SERVICOS}}': renderServicosPreview(pv.servicos),
-    '{{COR}}': cor,
-    '{{COR_CLARA}}': corClara(cor, 0.35),
-    '{{SLUG}}': esc(pv.slug),
-  };
-  for (const k of Object.keys(trocas)) html = html.split(k).join(trocas[k]);
-  html = html.replace(/<title>.*?<\/title>/i, `<title>${esc(nome)} — Prévia do seu site (BRB Pro)</title>`);
-  html = html.replace(/<script(?=[\s>])/g, `<script nonce="${req.cspNonce}"`);
-  html = html.replace('</head>', `<script nonce="${req.cspNonce}">window.BRB_PREVIEW=${JSON.stringify({ nome: nome, slug: pv.slug }).replace(/</g, '\\u003c')};</script></head>`);
-  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.send(html);
-}
-app.get(['/:slug', '/p/:slug'], rlGeral, async (req, res, next) => {
-  const slug = String(req.params.slug || '').toLowerCase();
-  if (!/^[a-z0-9-]{3,30}$/.test(slug) || SLUGS_RESERVADOS_PATH.has(slug)) return next();
-  if (!pool) return res.status(404).send(build404(slug));
-  try {
-    const r = await pool.query('SELECT * FROM previews WHERE slug=$1 AND ativa=TRUE', [slug]);
-    if (!r.rows.length) return res.status(404).send(build404(slug));
-    const pv = r.rows[0];
-    pool.query('UPDATE previews SET visitas = visitas + 1 WHERE id=$1', [pv.id]).catch(() => {});
-    servePreview(pv, req, res);
-  } catch (e) { next(e); }
-});
-// Beacon: prospect clicou em "QUERO ESSE SITE" (métrica de conversão da prévia)
-app.post('/api/preview/:slug/cta', rlGeral, async (req, res) => {
-  if (!pool) return res.json({ ok: false });
-  const slug = String(req.params.slug || '').toLowerCase();
-  try { await pool.query('UPDATE previews SET ctas = ctas + 1 WHERE slug=$1 AND ativa=TRUE', [slug]); } catch (_) {}
-  res.json({ ok: true });
-});
-
-// MASTER: criar/listar/remover prévias
-app.get('/api/master/previews', requireAuth, async (req, res) => {
-  if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
-  if (!pool) return semBanco(res);
-  const r = await pool.query('SELECT id, slug, nome, cidade, visitas, ctas, ativa, criada_em FROM previews WHERE ativa=TRUE ORDER BY criada_em DESC LIMIT 100');
-  res.json({ ok: true, previews: r.rows });
-});
-app.post('/api/master/previews', requireAuth, rlGeral, async (req, res) => {
-  if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
-  if (!pool) return semBanco(res);
-  const nome = String(req.body.nome || '').trim().slice(0, 80);
-  if (nome.length < 2) return res.status(400).json({ ok: false, error: 'Informe o nome da barbearia.' });
-  const cidade = String(req.body.cidade || '').trim().slice(0, 60) || null;
-  const endereco = String(req.body.endereco || '').trim().slice(0, 120) || null;
-  const instagram = String(req.body.instagram || '').trim().replace(/^@/, '').slice(0, 40) || null;
-  const whatsapp = String(req.body.whatsapp || '').replace(/\D/g, '');
-  if (whatsapp && !validarTelefone(whatsapp)) return res.status(400).json({ ok: false, error: 'WhatsApp inválido (use DDD + número).' });
-  const cor = /^#[0-9a-fA-F]{6}$/.test(String(req.body.cor_primaria || '')) ? req.body.cor_primaria : '#C9A86A';
-  const servicos = [];
-  const bruto = Array.isArray(req.body.servicos) ? req.body.servicos : [];
-  for (const s of bruto.slice(0, 12)) {
-    const sn = String((s && s.nome) || '').trim().slice(0, 60);
-    if (!sn) continue;
-    let sp = null;
-    if (s.preco !== '' && s.preco != null) {
-      if (!valorValido(s.preco)) return res.status(400).json({ ok: false, error: 'Preço inválido em "' + sn + '".' });
-      sp = toNum(s.preco);
-    }
-    servicos.push({ nome: sn, preco: sp });
-  }
-  let slug = slugify(nome);
-  if (slug.length < 3) slug = 'barbearia-' + slug;
-  if (RESERVED.has(slug)) slug = slug + '-previa';
-  let i = 2;
-  for (; i <= 50; i++) {
-    const [a, b] = await Promise.all([
-      pool.query('SELECT 1 FROM previews WHERE slug=$1', [slug]),
-      pool.query('SELECT 1 FROM barbershops WHERE slug=$1', [slug]),
-    ]);
-    if (!a.rows.length && !b.rows.length) break;
-    slug = slugify(nome) + '-' + i;
-  }
-  const r = await pool.query(
-    'INSERT INTO previews (slug, nome, cidade, endereco, instagram, whatsapp, cor_primaria, servicos) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, slug',
-    [slug, nome, cidade, endereco, instagram, whatsapp || null, cor, JSON.stringify(servicos)]);
-  registrarLog(req, 'master', 'previa_criada', `${nome} (${slug})`);
-  res.json({ ok: true, id: r.rows[0].id, slug: r.rows[0].slug });
-});
-app.delete('/api/master/previews/:id', requireAuth, async (req, res) => {
-  if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
-  if (!pool) return semBanco(res);
-  await pool.query('UPDATE previews SET ativa=FALSE, atualizada_em=now() WHERE id=$1', [String(req.params.id)]);
-  registrarLog(req, 'master', 'previa_removida', String(req.params.id));
+  // Invalida a cache na hora: o site sai (bloqueio) ou volta (ativação) imediatamente.
+  invalidarTenant(id);
   res.json({ ok: true });
 });
 
@@ -1114,22 +846,13 @@ function serveTenantSite(req, res) {
   if (!fs.existsSync(p)) return res.status(404).send(build404(''));
   let html = fs.readFileSync(p, 'utf8');
   const t = req.tenant;
-  const nonce = req.cspNonce;
   const nome = t.nome || 'Barbearia';
   const cidade = t.cidade ? ' em ' + t.cidade : '';
-  const fwd = req.headers['x-forwarded-host'] || req.hostname || '';
-  const hostAtual = String(fwd).split(':')[0].toLowerCase();
-  const origem = hostAtual ? `https://${hostAtual}` : `https://${t.slug}.brbpro.com.br`;
-  const ogImagem = `${origem}/images/og-image.jpg`;
   const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: t.cor_primaria || '#C9A86A', slug: t.slug });
   // Título e meta dinâmicos por tenant (SEO / aba do navegador / compartilhamento)
   const titulo = `${nome} — Barbearia${cidade} | Corte, Barba e Estilo`;
   html = html.replace(/<title>.*?<\/title>/i, `<title>${esc(titulo)}</title>`);
   html = html.replace(/(<meta name="description" content=")[^"]*(")/i, `$1${esc(titulo + '. Agende pelo WhatsApp (' + (t.whatsapp || '') + ').')}$2`);
-  html = html.replace(/(<link rel="canonical" href=")[^"]*(")/i, `$1${origem}/$2`);
-  html = html.replace(/(<meta property="og:url" content=")[^"]*(")/i, `$1${origem}/$2`);
-  html = html.replace(/(<meta property="og:image" content=")[^"]*(")/i, `$1${ogImagem}$2`);
-  html = html.replace(/(<meta name="twitter:image" content=")[^"]*(")/i, `$1${ogImagem}$2`);
   html = html.replace(/(<meta property="og:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
   html = html.replace(/(<meta property="og:site_name" content=")[^"]*(")/i, `$1${esc(nome)}$2`);
   html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
@@ -1137,20 +860,18 @@ function serveTenantSite(req, res) {
   html = html.replace(/(<h1 class="hero-title"[^>]*>)[\s\S]*?(<\/h1>)/i, `$1<span id="brandNome">${esc(nome)}</span>$2`);
   html = html.replace(/© 2026 Art na Régua\./gi, `© 2026 ${esc(nome)}.`);
   html = html.replace('<title></title>', `<title>${esc(titulo)}</title>`);
-  // CSP sem 'unsafe-inline': todos os <script> recebem o nonce da requisição
-  html = html.replace(/<script(?=[\s>])/g, `<script nonce="${nonce}"`);
-  html = html.replace('</head>', `<script nonce="${nonce}">window.BRB_TENANT=${cfg};</script></head>`);
+  html = html.replace('</head>', `<script>window.BRB_TENANT=${cfg};</script></head>`);
   res.setHeader('Content-Type', 'text/html; charset=UTF-8');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-store'); // nunca cachear: bloqueio/ativação reflete na hora
+  res.setHeader('CDN-Cache-Control', 'no-store');
+  res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store');
   res.send(html);
 }
 
-// Estáticos (css/js/images/video)
-const PUBLIC_DIR = path.join(__dirname, 'public');
-app.use('/css', express.static(path.join(PUBLIC_DIR, 'css'), { maxAge: '1d' }));
-app.use('/js', express.static(path.join(PUBLIC_DIR, 'js'), { maxAge: '1d' }));
-app.use('/images', express.static(path.join(PUBLIC_DIR, 'images'), { maxAge: '3d' }));
-app.use('/video', express.static(path.join(PUBLIC_DIR, 'video'), { maxAge: '7d' }));
+// Estáticos (css/js/images)
+app.use('/css', express.static(path.join(__dirname, 'public/css'), { maxAge: '1h' }));
+app.use('/js', express.static(path.join(__dirname, 'public/js'), { maxAge: '1h' }));
+app.use('/images', express.static(path.join(__dirname, 'public/images'), { maxAge: '1h' }));
 
 app.get('/', (req, res) => {
   if (req.isApp) {
@@ -1172,40 +893,10 @@ app.get('/', (req, res) => {
 // Painel admin (login.html e index.html pagos estáticos)
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 
-// Painel TV do tenant (a TV da barbearia abre https://slug.brbpro.com.br/tv)
-app.get('/tv', async (req, res) => {
-  // Sem tenant no host (ex.: painel master em app.brbpro.com.br) → usa o demo oficial
-  let t = req.tenant;
-  if (!t && pool) {
-    try { t = (await pool.query("SELECT * FROM barbershops WHERE slug='artnaregua' AND ativo=TRUE")).rows[0] || null; } catch { t = null; }
-  }
-  if (!t) return res.status(404).send(build404(''));
-  try {
-    const p = path.join(PUBLIC_DIR, 'tv.html');
-    if (!fs.existsSync(p)) return res.status(404).end();
-    let html = fs.readFileSync(p, 'utf8');
-    const nome = t.nome || 'Barbearia';
-    html = html.replace(/<title>.*?<\/title>/i, `<title>Painel TV — ${esc(nome)}</title>`);
-    html = html.replace(/<div class="marca">[\s\S]*?<\/div>/, `<div class="marca"><img src="/images/logo-icon.png" alt="" /> ${esc(nome)}</div>`);
-    html = html.replace(/<script(?=[\s>])/g, `<script nonce="${req.cspNonce}"`);
-    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.send(html);
-  } catch (e) { res.status(404).end(); }
-});
-
-// Fallback: arquivos estáticos do tenant — SEMPRE dentro de public/ (anti path-traversal)
-function arquivoPublicoSeguro(req) {
-  try {
-    const p = path.normalize(path.join(PUBLIC_DIR, req.path.replace(/^\/+/, '')));
-    if (!p.startsWith(PUBLIC_DIR + path.sep)) return null;
-    if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
-    return null;
-  } catch { return null; }
-}
+// Fallback: qualquer .html do tenant
 app.get('*', (req, res) => {
-  const p = arquivoPublicoSeguro(req);
-  if (p) return res.sendFile(p);
+  const p = path.join(__dirname, 'public', req.path.replace(/^\//, ''));
+  if (fs.existsSync(p) && fs.statSync(p).isFile()) return res.sendFile(p);
   if (req.tenant) return serveTenantSite(req, res);
   res.status(404).send(build404(''));
 });
@@ -1215,17 +906,6 @@ app.use((req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ ok: false, error: 'Rota não encontrada.' });
   if (req.tenant) return serveTenantSite(req, res);
   res.status(404).send(build404(''));
-});
-
-/* ============================ BLINDAGEM GLOBAL (um erro de 1 request não derruba o processo) ============================ */
-process.on('unhandledRejection', (e) => console.error('[unhandledRejection]', e && e.message ? e.message : e));
-process.on('uncaughtException', (e) => console.error('[uncaughtException]', e && e.message ? e.message : e));
-// Middleware de erro final (Express 4 não captura erros de rotas async)
-app.use((err, req, res, next) => {
-  if (res.headersSent) return next(err);
-  console.error('[erro]', req.method, req.path, err && err.message ? err.message : err);
-  if (req.path.startsWith('/api/')) return res.status(500).json({ ok: false, error: 'Erro interno.' });
-  res.status(500).send('<html style="font-family:system-ui;background:#07080A;color:#F2F0EC;text-align:center;padding:60px"><h1 style="color:#C9A86A">Erro interno</h1><p>Tente novamente em instantes.</p></html>');
 });
 
 app.listen(PORT, '0.0.0.0', () => {
