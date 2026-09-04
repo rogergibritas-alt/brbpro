@@ -1164,11 +1164,15 @@ app.get('/tv', (req, res) => {
   if (!fs.existsSync(p)) return res.status(404).send('Painel da TV indisponível.');
   let html = fs.readFileSync(p, 'utf8');
   const nome = (req.tenant && req.tenant.nome) || 'Barbearia';
-  html = html.replace(/Art na R.égua/gi, esc(nome));
+  html = html.replace(/Art\s+na\s+R[eé]gua/gi, esc(nome));
   html = html.replace(/<title>[^<]*<\/title>/i, `<title>Painel TV — ${esc(nome)}</title>`);
-  // logo do tenant
-  if (req.tenant && req.tenant.logo && String(req.tenant.logo).startsWith('data:')) {
-    html = html.replace(/<img src="\/images\/logo-icon\.png"[^>]*>/i, `<img src="/m/${req.tenant.slug}/logo" alt="" />`);
+  // Marca do tenant no topo do Painel TV (logo + nome), troca o bloco .marca inteiro
+  if (req.tenant) {
+    const logo = (req.tenant.logo && String(req.tenant.logo).startsWith('data:')) ? `/m/${req.tenant.slug}/logo` : '';
+    const marca = logo
+      ? `<div class="marca"><img src="${logo}" alt="" /> ${esc(nome)}</div>`
+      : `<div class="marca">${esc(nome)}</div>`;
+    html = html.replace(/(<div class="marca"[^>]*>)[\s\S]*?(<\/div>)/i, marca);
   }
   res.setHeader('Content-Type', 'text/html; charset=UTF-8');
   res.setHeader('Cache-Control', 'no-store');
