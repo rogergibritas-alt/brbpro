@@ -935,11 +935,37 @@ app.use((req, res, next) => {
 });
 app.use('/admin', (req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next(); });
 
-function serveTenantSite(req, res) {
+async function serveTenantSite(req, res) {
   const p = path.join(__dirname, 'public', 'index.html');
   if (!fs.existsSync(p)) return res.status(404).send(build404(''));
   let html = fs.readFileSync(p, 'utf8');
   const t = req.tenant;
+  // Fotos da galeria do cliente — usadas para substituir as imagens de fundo fixas (Art na Régua)
+  let fotosDoSite = [];
+  try {
+    if (pool && req.tenantId) {
+      const fr = await pool.query("SELECT id FROM fotos WHERE tenant_id=$1 ORDER BY id ASC", [req.tenantId]);
+      fotosDoSite = fr.rows.map(r => `/api/foto/${r.id}`);
+    }
+  } catch (e) {}
+  // Substitui as imagens de fundo fixas (foto1..foto8/hero-real) pelas fotos do cliente
+  if (fotosDoSite.length) {
+    const regexBg = /url\(['"]?\/images\/real\/[a-z0-9_\-]+\.jpg['"]?\)/gi;
+    let idx = 0;
+    html = html.replace(regexBg, function () {
+      const url = fotosDoSite[idx % fotosDoSite.length];
+      idx++;
+      return `url('${url}')`;
+    });
+    // hero-bg
+    html = html.replace(/url\(['"]?\/images\/real\/hero-real\.jpg['"]?\)/i, `url('${fotosDoSite[0]}')`);
+    // <img> da seção sobre que mostra uma foto fixa
+    html = html.replace(/<img src="\/images\/real\/[a-z0-9_\-]+\.jpg"[^>]*>/i, `<img src="${fotosDoSite[0]}" alt="${esc(t.nome)}" loading="lazy" />`);
+    // og:image e JSON-LD "image" (compartilhamento/Rich Results)
+    html = html.replace(/(<meta property="og:image" content=")[^"]*(")/i, `$1${fotosDoSite[0]}$2`);
+    html = html.replace(/(<meta name="twitter:image" content=")[^"]*(")/i, `$1${fotosDoSite[0]}$2`);
+    html = html.replace(/("image":\s*")[^"]*(")/, `$1${fotosDoSite[0]}$2`);
+  }
   const nome = t.nome || 'Barbearia';
   const cidade = t.cidade ? ' em ' + t.cidade : '';
   const cor1 = t.cor_primaria || '#C9A86A';
@@ -958,7 +984,9 @@ function serveTenantSite(req, res) {
   const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: cor1, cor_secundaria: cor2, slug: t.slug, slogan: t.slogan||'', hero_titulo: heroTitulo, hero_sub: heroSub, sobre_texto: t.sobre_texto||'', logo_url: logoUrl, hero_url: heroUrl, video_url: videoUrl, intro_url: introUrl });
   // Vídeo de introdução do cliente: substitui o intro.mp4 padrão (da Art na Régua)
   if (introUrl) {
-    html = html.replace(/(<source src="\/video\/intro\.mp4"[^>]*>)/, `<source src="${introUrl}" type="video/mp4" />`);
+    // Troca TODO o bloco <video id="introVideo">...</video> pelo vídeo do cliente com muted (autoplay desbloqueado)
+    const blobIntro = `<video id="introVideo" playsinline autoplay muted loop preload="auto"><source src="${introUrl}" type="video/mp4" /></video>`;
+    html = html.replace(/<video id="introVideo"[\s\S]*?<\/video>/i, blobIntro);
   }
   // Título e meta dinâmicos por tenant (SEO / aba do navegador / compartilhamento)
   const titulo = `${heroTitulo}${cidade} | Corte, Barba e Estilo`;
@@ -969,14 +997,12 @@ function serveTenantSite(req, res) {
   html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
   // Logo do cliente (por URL — evita embutir base64 pesado no HTML)
   if (logoUrl) {
+    // troca o bloco nav-logo INTEIRO (imagem + texto "Art na Régua" quebrado) pela marca do cliente
+    html = html.replace(/(<a class="nav-logo"[^>]*>)[\s\S]*?(<\/a>)/i, `$1<img class="logo-mark" src="${logoUrl}" alt="${esc(nome)}" /> <span class="logo-nome">${esc(nome)}</span>$2`);
+    // ainda substitui qualquer imagem logo-mark/logo-icon remanescente
     html = html.replace(/<img class="logo-mark"[^>]*>/i, `<img class="logo-mark" src="${logoUrl}" alt="${esc(nome)}" />`);
     html = html.replace(/<img src="\/images\/logo-icon\.png"[^>]*>/i, `<img src="${logoUrl}" alt="${esc(nome)}" />`);
-  }
-  // Marca no menu: substitui o texto "Art<span> na Régua</span>" (com tag no meio) pelo nome do cliente
-  html = html.replace(/Art<span> na R.égua<\/span>/i, esc(nome));
-  // Se tiver logo, esconde o texto do menu (a logo já é a marca) e ajusta o tamanho do logo-mark
-  if (logoUrl) {
-    html = html.replace(/(<a class="nav-logo"[^>]*>)/, `$1<style>@media(min-width:760px){.nav-logo .logo-mark{height:46px;width:auto;}.nav-logo{font-size:0;}}.nav-logo .logo-mark{height:34px;width:auto;}</style>`);
+    html = html.replace(/<img src="\/images\/logo-completa\.png"[^>]*>/i, `<img src="${logoUrl}" alt="${esc(nome)}" />`);
   }
   // Hero: substitui imagem de fundo (por URL) e texto
   if (heroUrl) {
@@ -1027,7 +1053,7 @@ app.use('/css', express.static(path.join(__dirname, 'public/css'), { maxAge: '1h
 app.use('/js', express.static(path.join(__dirname, 'public/js'), { maxAge: '1h' }));
 app.use('/images', express.static(path.join(__dirname, 'public/images'), { maxAge: '1h' }));
 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
   if (req.isApp) {
     // painel master
     const p = path.join(__dirname, 'public', 'admin', 'login.html');
@@ -1037,7 +1063,7 @@ app.get('/', (req, res) => {
   if (req.tenantSlug === 'admin' || req.tenantSlug === 'painel') {
     return res.sendFile(path.join(__dirname, 'public', 'admin', 'login.html'));
   }
-  if (req.tenant) return serveTenantSite(req, res);
+  if (req.tenant) return await serveTenantSite(req, res);
   // landing
   const lp = path.join(__dirname, 'brbpro-landing', 'index.html');
   if (fs.existsSync(lp)) return res.sendFile(lp);
@@ -1048,17 +1074,17 @@ app.get('/', (req, res) => {
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 
 // Fallback: qualquer .html do tenant
-app.get('*', (req, res) => {
+app.get('*', async (req, res) => {
   const p = path.join(__dirname, 'public', req.path.replace(/^\//, ''));
   if (fs.existsSync(p) && fs.statSync(p).isFile()) return res.sendFile(p);
-  if (req.tenant) return serveTenantSite(req, res);
+  if (req.tenant) return await serveTenantSite(req, res);
   res.status(404).send(build404(''));
 });
 
 // 404 API
-app.use((req, res) => {
+app.use(async (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ ok: false, error: 'Rota não encontrada.' });
-  if (req.tenant) return serveTenantSite(req, res);
+  if (req.tenant) return await serveTenantSite(req, res);
   res.status(404).send(build404(''));
 });
 
