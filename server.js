@@ -1062,6 +1062,120 @@ async function serveTenantSite(req, res) {
   res.send(html);
 }
 
+/* ============================ PAINEL DA TV (por barbearia) ============================ */
+// Exibe na TV o cliente sendo atendido AGORA e o próximo, da agenda DO TENANT.
+app.get('/api/tv/agora', async (req, res) => {
+  if (!pool) return res.json({ ok: true, fechado: false, atual: null, proximo: null, tenant: req.tenantId || null });
+  if (!req.tenantId) return res.redirect('/');
+  const br = new Date(Date.now() - 3 * 3600 * 1000);
+  const hoje = br.toISOString().slice(0, 10);
+  const agoraMin = br.getUTCHours() * 60 + br.getUTCMinutes();
+  const r = await pool.query(
+    "SELECT nome, servico, horario, num_slots FROM agendamentos WHERE tenant_id=$1 AND data=$2 AND status <> 'cancelado' ORDER BY horario",
+    [req.tenantId, hoje]
+  );
+  let atual = null, proximo = null;
+  for (let i = 0; i < r.rows.length; i++) {
+    const a = r.rows[i];
+    const [h, m] = a.horario.split(':').map(Number);
+    const inicio = h * 60 + m;
+    const fim = inicio + 40 * (Number(a.num_slots) || 1);
+    if (agoraMin >= inicio && agoraMin < fim) { atual = a; if (i + 1 < r.rows.length) proximo = r.rows[i + 1]; break; }
+    if (agoraMin < inicio) { proximo = a; break; }
+  }
+  res.json({
+    ok: true, hoje, agora: br.toISOString(), tenant: req.tenantId,
+    nome: req.tenant ? req.tenant.nome : '',
+    atual: atual ? { nome: atual.nome, servico: atual.servico, horario: atual.horario, num_slots: atual.num_slots } : null,
+    proximo: proximo ? { nome: proximo.nome, servico: proximo.servico, horario: proximo.horario, num_slots: proximo.num_slots } : null,
+  });
+});
+
+// Vídeo persistido por tenant (configuracoes chave tv_video_url)
+app.get('/api/tv/video', async (req, res) => {
+  if (!pool) return res.json({ ok: true, url: '' });
+  const r = await pool.query("SELECT valor FROM configuracoes WHERE tenant_id=$1 AND chave='tv_video_url'", [req.tenantId])
+    .catch(() => ({ rows: [] }));
+  res.json({ ok: true, url: (r.rows[0] && r.rows[0].valor) || '' });
+});
+app.post('/api/tv/video', requireAuth, async (req, res) => {
+  if (!pool) return res.json({ ok: true });
+  const url = String(req.body.url || '').trim().slice(0, 300);
+  if (!req.tenantId) return res.json({ ok: false, error: 'Sem tenant.' });
+  if (url && !/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(url)) return res.status(400).json({ ok: false, error: 'Cole um link válido do YouTube.' });
+  await pool.query("INSERT INTO configuracoes (tenant_id, chave, valor) VALUES ($1,'tv_video_url',$2) ON CONFLICT (tenant_id, chave) DO UPDATE SET valor=EXCLUDED.valor", [req.tenantId, url]);
+  res.json({ ok: true });
+});
+
+// Proxy HLS (para o player da TV)
+const httpMod = require('http'), httpsMod = require('https');
+function buscarRemoto(url, redirects, headers) {
+  return new Promise((resolve, reject) => {
+    const lib = url.startsWith('https') ? httpsMod : httpMod;
+    const req = lib.get(url, { headers: Object.assign({ 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' }, headers || {}) }, (r) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
+        const next = new URL(r.headers.location, url).toString();
+        if ((redirects || 0) > 5) return reject(new Error('redirects'));
+        r.resume(); return buscarRemoto(next, (redirects || 0) + 1).then(resolve).catch(reject);
+      }
+      if (r.statusCode !== 200) { r.resume(); return reject(new Error('status ' + r.statusCode)); }
+      const chunks = []; r.on('data', (c) => chunks.push(c));
+      r.on('end', () => resolve({ tipo: r.headers['content-type'] || '', buf: Buffer.concat(chunks) }));
+    });
+    req.on('error', reject); req.setTimeout(15000, () => req.destroy(new Error('timeout')));
+  });
+}
+const rlProxy = rateLimit(240, 60 * 1000);
+app.get('/api/tv/proxy', rlProxy, async (req, res) => {
+  const alvo = String(req.query.url || '').trim();
+  if (!/^https?:\/\//.test(alvo)) return res.status(400).end();
+  try {
+    const u = new URL(alvo), host = u.hostname.toLowerCase();
+    const privado = !host || host === 'localhost' || host === '0.0.0.0' || /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^169\.254\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host === '::1' || host === '[::1]' || /\.local$/.test(host) || /\.internal$/.test(host) || /\.lan$/.test(host) || host.endsWith('.onion');
+    if (privado) return res.status(403).end();
+  } catch { return res.status(400).end(); }
+  try {
+    const { tipo, buf } = await buscarRemoto(alvo, 0);
+    const texto = buf.toString('utf8');
+    if (tipo.includes('mpegurl') || texto.trim().startsWith('#EXTM3U')) {
+      const base = new URL(alvo), baseDir = base.toString().slice(0, base.toString().lastIndexOf('/') + 1);
+      const linhas = texto.split('\n').map((linha) => { const l = linha.trim(); if (!l || l.startsWith('#')) return linha; const urlAbs = new URL(l, baseDir).toString(); return '/api/tv/proxy?url=' + encodeURIComponent(urlAbs); });
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl'); res.setHeader('Cache-Control', 'no-cache');
+      return res.send(linhas.join('\n'));
+    }
+    const ct = tipo || 'video/mp2t';
+    res.setHeader('Content-Type', ct); res.setHeader('Cache-Control', 'no-cache'); res.send(buf);
+  } catch (e) { res.status(502).end(); }
+});
+
+// Canais
+const CANAIS_FIXOS = [
+  { nome: 'Sony Movies', categoria: 'Filmes (TV)', url: 'http://45.162.64.114/SONY_MOVIES/index.m3u8' },
+  { nome: 'Studio Universal', categoria: 'Filmes (TV)', url: 'http://177.52.24.163/STUDIO-UNIVERSAL-HD/index.m3u8' },
+  { nome: 'Sony Channel', categoria: 'Filmes (TV)', url: 'http://45.190.28.50/SONY_HD/index.m3u8' },
+  { nome: 'AXN', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/AXN_HD/index.m3u8' },
+  { nome: 'Lifetime', categoria: 'Ação & Aventura', url: 'http://138.255.2.6:8084/LIFETIME/index.m3u8' },
+];
+app.get('/api/tv/canais', async (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, canais: CANAIS_FIXOS }); });
+
+// Rota /tv -> serve o tv.html do painel (com no-cache e marca do tenant)
+app.get('/tv', (req, res) => {
+  const p = path.join(__dirname, 'public', 'tv.html');
+  if (!fs.existsSync(p)) return res.status(404).send('Painel da TV indisponível.');
+  let html = fs.readFileSync(p, 'utf8');
+  const nome = (req.tenant && req.tenant.nome) || 'Barbearia';
+  html = html.replace(/Art na R.égua/gi, esc(nome));
+  html = html.replace(/<title>[^<]*<\/title>/i, `<title>Painel TV — ${esc(nome)}</title>`);
+  // logo do tenant
+  if (req.tenant && req.tenant.logo && String(req.tenant.logo).startsWith('data:')) {
+    html = html.replace(/<img src="\/images\/logo-icon\.png"[^>]*>/i, `<img src="/m/${req.tenant.slug}/logo" alt="" />`);
+  }
+  res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(vAssets(html));
+});
+
+
 // Estáticos (css/js/images)
 app.use('/css', express.static(path.join(__dirname, 'public/css'), { setHeaders: function(res){ res.setHeader('Cache-Control','no-cache'); } }));
 app.use('/js', express.static(path.join(__dirname, 'public/js'), { setHeaders: function(res){ res.setHeader('Cache-Control','no-cache'); } }));
