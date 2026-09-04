@@ -198,6 +198,12 @@ function build404(slug) {
 }
 
 /* ============================ HELPERS ============================ */
+// Injeta a versão do deploy nos assets (?v=NUM -> ?v=<commit>) p/ nunca ficar com JS/CSS antigo
+function vAssets(html) {
+  const v = (VERSAO || '1').replace(/[^a-z0-9]/gi, '').slice(0, 10) || '1';
+  return html.replace(/(\?v=)[0-9a-z]+/gi, '$1' + v);
+}
+
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function validarDataISO(s) {
   const str = String(s || '');
@@ -1049,8 +1055,8 @@ async function serveTenantSite(req, res) {
 }
 
 // Estáticos (css/js/images)
-app.use('/css', express.static(path.join(__dirname, 'public/css'), { maxAge: '1h' }));
-app.use('/js', express.static(path.join(__dirname, 'public/js'), { maxAge: '1h' }));
+app.use('/css', express.static(path.join(__dirname, 'public/css'), { setHeaders: function(res){ res.setHeader('Cache-Control','no-cache'); } }));
+app.use('/js', express.static(path.join(__dirname, 'public/js'), { setHeaders: function(res){ res.setHeader('Cache-Control','no-cache'); } }));
 app.use('/images', express.static(path.join(__dirname, 'public/images'), { maxAge: '1h' }));
 
 app.get('/', async (req, res) => {
@@ -1070,8 +1076,18 @@ app.get('/', async (req, res) => {
   return res.send(`<h1>BRB Pro</h1><p>Plataforma de sites para barbearias.</p>`);
 });
 
-// Painel admin (login.html e index.html pagos estáticos)
-app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
+// Painel admin — HTMLs com cache-busting (JS/CSS sempre na versão do deploy) e no-cache
+app.use('/admin', function (req, res, next) {
+  const rel = req.path.replace(/^\//, '');
+  const fp = path.join(__dirname, 'public', 'admin', rel);
+  if ((/login\.html$|\.html$/i.test(req.path)) && fs.existsSync(fp) && fs.statSync(fp).isFile()) {
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    return res.send(vAssets(fs.readFileSync(fp, 'utf8')));
+  }
+  next();
+});
+app.use('/admin', express.static(path.join(__dirname, 'public', 'admin'), { setHeaders: function(res){ res.setHeader('Cache-Control','no-cache'); } }));
 
 // Fallback: qualquer .html do tenant
 app.get('*', async (req, res) => {
