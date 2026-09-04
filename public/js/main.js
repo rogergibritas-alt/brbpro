@@ -552,9 +552,31 @@
       categoriasGrid.querySelectorAll('.categoria-card').forEach(function (card) {
         card.addEventListener('click', function () { abrirCategoria(card.getAttribute('data-cat')); });
       });
+      // Aplica as fotos da galeria do cliente como FUNDO das seções internas do site
+      aplicarFotosComoFundo(cats);
     } catch (e) {
       categoriasGrid.innerHTML = '<p class="categorias-carregando">Não foi possível carregar a galeria.</p>';
     }
+  }
+
+  // Usa as fotos da barra de galeria como imagens de fundo das seções (hero/sobre/serviços/etc.)
+  async function aplicarFotosComoFundo(cats) {
+    try {
+      var secoes = document.querySelectorAll('.section.bg-img, .bg-img');
+      if (!secoes.length || !cats || !cats.length) return;
+      var fotos = [];
+      for (var i = 0; i < cats.length && fotos.length < secoes.length; i++) {
+        var r = await fetch('/api/fotos?categoria=' + encodeURIComponent(cats[i].categoria));
+        var j = await r.json();
+        var itens = (j && j.fotos) || [];
+        itens.forEach(function (it) { if (fotos.length < secoes.length) fotos.push('/api/foto/' + it.id); });
+      }
+      secoes.forEach(function (sec, idx) {
+        if (fotos[idx]) {
+          sec.style.backgroundImage = 'linear-gradient(rgba(11,11,13,0.72), rgba(11,11,13,0.82)), url("' + fotos[idx] + '")';
+        }
+      });
+    } catch (e) { /* silencioso */ }
   }
 
   async function abrirCategoria(cat) {
