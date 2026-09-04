@@ -426,13 +426,13 @@ app.get('/api/foto/:id', async (req, res) => {
     res.send(buf);
   } catch (e) { console.error('[foto]', e.message); res.status(500).end(); }
 });
-// Serve mídia de marca da barbearia (logo / hero_imagem / video_hero) por URL,
+// Serve mídia de marca da barbearia (logo / hero_imagem / video_hero / intro) por URL,
 // evitando embutir base64 pesado no HTML (deixa o site leve).
 app.get('/m/:slug/:tipo', async (req, res) => {
   if (!pool) return res.status(404).end();
   const slug = String(req.params.slug || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
   const tipo = String(req.params.tipo || '');
-  const col = tipo === 'logo' ? 'logo' : tipo === 'hero' ? 'hero_imagem' : tipo === 'video' ? 'video_hero' : null;
+  const col = tipo === 'logo' ? 'logo' : tipo === 'hero' ? 'hero_imagem' : tipo === 'video' ? 'video_hero' : tipo === 'intro' ? 'intro_video' : null;
   if (!col || !slug) return res.status(404).end();
   try {
     const r = await pool.query('SELECT ' + col + ' AS m FROM barbershops WHERE slug=$1', [slug]);
@@ -896,6 +896,7 @@ app.put('/api/master/tenants/:id/personalizar', requireAuth, requireTenantOwner,
       logo: limita(b.logo, 400000),          // logo comprimida ~600px
       hero_imagem: limita(b.hero_imagem, 2200000), // hero ~1600px
       video_hero: limita(b.video_hero, 16000000),  // vídeo até ~16MB
+      intro_video: limita(b.intro_video, 20000000), // vídeo de introdução até ~20MB
     };
   } catch (e) { return res.status(400).json({ ok: false, error: e.message }); }
   const cols = [
@@ -906,7 +907,7 @@ app.put('/api/master/tenants/:id/personalizar', requireAuth, requireTenantOwner,
     ['slogan', so(b.slogan, 140)], ['hero_titulo', so(b.hero_titulo, 80)],
     ['hero_sub', so(b.hero_sub, 200)], ['sobre_texto', so(b.sobre_texto, 1200)],
     ['tema', so(b.tema, 20)],
-    ['logo', midias.logo], ['hero_imagem', midias.hero_imagem], ['video_hero', midias.video_hero],
+    ['logo', midias.logo], ['hero_imagem', midias.hero_imagem], ['video_hero', midias.video_hero], ['intro_video', midias.intro_video],
   ];
   const setClause = [];
   const params = [];
@@ -953,7 +954,12 @@ function serveTenantSite(req, res) {
   const logoUrl = t.logo && String(t.logo).startsWith('data:') ? `/m/${t.slug}/logo` : '';
   const heroUrl = t.hero_imagem && String(t.hero_imagem).startsWith('data:') ? `/m/${t.slug}/hero` : '';
   const videoUrl = t.video_hero && String(t.video_hero).startsWith('data:') ? `/m/${t.slug}/video` : '';
-  const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: cor1, cor_secundaria: cor2, slug: t.slug, slogan: t.slogan||'', hero_titulo: heroTitulo, hero_sub: heroSub, sobre_texto: t.sobre_texto||'', logo_url: logoUrl, hero_url: heroUrl, video_url: videoUrl });
+  const introUrl = t.intro_video && String(t.intro_video).startsWith('data:') ? `/m/${t.slug}/intro` : '';
+  const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: cor1, cor_secundaria: cor2, slug: t.slug, slogan: t.slogan||'', hero_titulo: heroTitulo, hero_sub: heroSub, sobre_texto: t.sobre_texto||'', logo_url: logoUrl, hero_url: heroUrl, video_url: videoUrl, intro_url: introUrl });
+  // Vídeo de introdução do cliente: substitui o intro.mp4 padrão (da Art na Régua)
+  if (introUrl) {
+    html = html.replace(/(<source src="\/video\/intro\.mp4"[^>]*>)/, `<source src="${introUrl}" type="video/mp4" />`);
+  }
   // Título e meta dinâmicos por tenant (SEO / aba do navegador / compartilhamento)
   const titulo = `${heroTitulo}${cidade} | Corte, Barba e Estilo`;
   html = html.replace(/<title>.*?<\/title>/i, `<title>${esc(titulo)}</title>`);

@@ -221,3 +221,4 @@ ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS sobre_texto  TEXT;            -
 ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS cor_secundaria TEXT DEFAULT '#B08D57';
 ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS fonte_titulo TEXT;            -- nome da fonte p/ títulos
 ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS ia_ativo BOOLEAN DEFAULT FALSE; -- reservado
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS intro_video TEXT;        -- vídeo de introdução do site (data URL)
