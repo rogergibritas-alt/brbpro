@@ -83,17 +83,17 @@
   // BRB Pro: auth via cookie — tenta /api/admin/me sem checar localStorage
   // if (!token) { window.location.href = '/admin/login.html'; return; }
   var ME = null;
+  var EU_SOU_MASTER = false;
   api('/api/admin/me').then(function (j) {
     if (!j.ok) { window.location.href = '/admin/login.html'; return; }
-    ME = j.user || null;
-    if (ME && ME.role === 'master') {
-      var tabPrevias = document.querySelector('[data-tab="previews"]');
-      if (tabPrevias) tabPrevias.hidden = false;
-    }
+    ME = j.user || {};
+    EU_SOU_MASTER = (ME.role === 'master');
+    // Mostra a aba de gestão de clientes/barbearias apenas para o master
+    if (EU_SOU_MASTER) { var t = document.getElementById('tabBtnClientesPlataforma'); if (t) t.hidden = false; }
   }).catch(function(){ window.location.href = '/admin/login.html'; });
 
   /* ---------- Navegação ---------- */
-  var titulos = { dashboard: 'Visão geral', agenda: 'Agenda', importar: 'Importar agenda', clientes: 'Clientes', caixa: 'Fluxo de caixa', estoque: 'Estoque', servicos: 'Serviços & preços', galeria: 'Galeria', faq: 'Dúvidas frequentes', relatorio: 'Relatório', auditoria: 'Auditoria', config: 'Configurações', previews: 'Prévias personalizadas' };
+  var titulos = { dashboard: 'Visão geral', agenda: 'Agenda', importar: 'Importar agenda', clientes: 'Clientes', caixa: 'Fluxo de caixa', estoque: 'Estoque', servicos: 'Serviços & preços', galeria: 'Galeria', faq: 'Dúvidas frequentes', relatorio: 'Relatório', auditoria: 'Auditoria', config: 'Configurações' };
   document.querySelectorAll('.nav-item[data-tab]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       document.querySelectorAll('.nav-item[data-tab]').forEach(function (b) { b.classList.remove('ativo'); });
@@ -127,7 +127,7 @@
     if (tab === 'faq') carregarFaq();
     if (tab === 'relatorio') { carregarRelatorio(); carregarRelatorioMensal(); }
     if (tab === 'auditoria') carregarAuditoria();
-    if (tab === 'previews') carregarPreviews();
+    if (tab === 'clientesPlataforma') carregarClientesPlataforma();
   }
 
   /* ============================================================
@@ -155,85 +155,8 @@
       case 'excluir-foto': excluirFoto(parseInt(id, 10)); break;
       case 'editar-faq': editarFaq(parseInt(id, 10)); break;
       case 'excluir-faq': excluirFaq(parseInt(id, 10)); break;
-      case 'copiar-previa':
-        (async function () {
-          var url = btn.getAttribute('data-url');
-          try { await navigator.clipboard.writeText(url); toast('Link copiado!'); }
-          catch (_) { window.prompt('Copie o link:', url); }
-        })();
-        break;
-      case 'abrir-previa': window.open(btn.getAttribute('data-url'), '_blank'); break;
-      case 'excluir-previa':
-        if (confirm('Excluir esta prévia? O link para de funcionar.')) {
-          api('/api/master/previews/' + id, { method: 'DELETE' }).then(function (j) {
-            if (j.ok) { toast('Prévia removida.'); carregarPreviews(); } else toast(j.error || 'Erro.');
-          });
-        }
-        break;
     }
   });
-
-  /* ---------- Prévias personalizadas (master) ---------- */
-  function carregarPreviews() {
-    api('/api/master/previews').then(function (j) {
-      var el = $('#pvLista');
-      if (!el) return;
-      if (!j.ok) { el.innerHTML = '<p style="color:var(--muted);font-size:.85rem;">' + esc(j.error || 'Erro ao carregar.') + '</p>'; return; }
-      if (!j.previews.length) { el.innerHTML = '<p style="color:var(--muted);font-size:.85rem;">Nenhuma prévia ainda. Crie a primeira acima.</p>'; return; }
-      var ativas = j.previews.filter(function (p) { return p.ativa !== false; });
-      if (!ativas.length) { el.innerHTML = '<p style="color:var(--muted);font-size:.85rem;">Nenhuma prévia ativa. Crie a primeira acima.</p>'; return; }
-      var html = '<table class="tabela"><tr><th>Link</th><th>Cidade</th><th>Visitas</th><th>CTAs</th><th>Criada</th><th></th></tr>';
-      ativas.forEach(function (p) {
-        var url = 'https://brbpro.com.br/' + p.slug;
-        var data = new Date(p.criada_em).toLocaleDateString('pt-BR');
-        html += '<tr>' +
-          '<td><b>' + esc(p.slug) + '</b> <span style="color:var(--muted);font-size:.78rem;">' + esc(p.nome || '') + '</span></td>' +
-          '<td>' + esc(p.cidade || '—') + '</td>' +
-          '<td>' + (p.visitas || 0) + '</td>' +
-          '<td><b style="color:#7EE0A0;">' + (p.ctas || 0) + '</b></td>' +
-          '<td>' + data + '</td>' +
-          '<td style="white-space:nowrap;">' +
-            '<button class="btn btn-sm btn-ghost" data-action="copiar-previa" data-url="' + url + '">Copiar</button> ' +
-            '<button class="btn btn-sm btn-ghost" data-action="abrir-previa" data-url="' + url + '">Abrir</button> ' +
-            '<button class="btn btn-sm btn-danger" data-action="excluir-previa" data-id="' + p.id + '">Excluir</button>' +
-          '</td></tr>';
-      });
-      el.innerHTML = html + '</table>';
-    }).catch(function () {});
-  }
-  (function () {
-    var btn = document.getElementById('btnCriarPrev');
-    if (!btn) return;
-    btn.addEventListener('click', async function () {
-      var nome = $('#pvNome').value.trim();
-      if (nome.length < 2) { toast('Informe o nome da barbearia.'); return; }
-      var servicos = $('#pvServicos').value.split('\n').map(function (l) {
-        var parts = l.split('|').map(function (s) { return s.trim(); });
-        return { nome: parts[0] || '', preco: parts[1] === undefined ? '' : parts[1].replace(/[^0-9.,]/g, '') };
-      }).filter(function (s) { return s.nome; });
-      var status = $('#pvStatus');
-      status.textContent = 'Gerando...';
-      try {
-        var j = await api('/api/master/previews', { method: 'POST', body: JSON.stringify({
-          nome: nome,
-          cidade: $('#pvCidade').value.trim(),
-          endereco: $('#pvEndereco').value.trim(),
-          instagram: $('#pvInsta').value.trim(),
-          cor_primaria: $('#pvCor').value,
-          servicos: servicos
-        }) });
-        if (!j.ok) { status.textContent = j.error || 'Erro ao gerar.'; return; }
-        var url = 'https://brbpro.com.br/' + j.slug;
-        var box = $('#pvResultado');
-        box.hidden = false;
-        box.innerHTML = '✅ Prévia criada: <b>' + url + '</b><br/>' +
-          '<span style="color:var(--muted);font-size:.85rem;">Mande o link com o script: “Fiz uma prévia de como ficaria o site de vocês. Levei uns minutos pra montar. Dá uma olhada.” ✂️</span>';
-        status.textContent = 'Prévia criada!';
-        $('#pvNome').value = ''; $('#pvCidade').value = ''; $('#pvEndereco').value = ''; $('#pvInsta').value = ''; $('#pvServicos').value = '';
-        carregarPreviews();
-      } catch (e) { status.textContent = 'Erro ao gerar.'; }
-    });
-  })();
 
   /* ---------- Dashboard ---------- */
   async function carregarDashboard() {
@@ -957,8 +880,76 @@
     else toast(j.error || 'Erro ao alterar.');
   };
 
+  /* ---------- MASTER: Gestão de clientes (barbearias) ---------- */
+  // Lista todas as barbearias da plataforma e permite ATIVAR/BLOQUEAR/CRIAR.
+  async function carregarClientesPlataforma() {
+    if (!EU_SOU_MASTER) { toast('Apenas o gestor (master) pode acessar.'); return; }
+    var j = await api('/api/master/tenants');
+    var t = $('#tblClientesPlataforma');
+    var corpo = $('#clientesPlataformaCorpo');
+    if (!corpo) return;
+    if (!j.ok || !j.tenants || !j.tenants.length) { corpo.innerHTML = '<tr><td colspan="5" class="vazio">Nenhuma barbearia cadastrada ainda.</td></tr>'; return; }
+    corpo.innerHTML = j.tenants.map(function (x) {
+      var ativo = !!x.ativo;
+      return '<tr>' +
+        '<td><b>' + esc(x.nome) + '</b><div class="muted">' + esc(x.slug) + '.brbpro.com.br</div></td>' +
+        '<td>' + esc(x.cidade || '—') + '</td>' +
+        '<td>' + esc(x.plano || 'pro') + '</td>' +
+        '<td>' + (ativo ? '<span class="badge badge-entrada">ATIVO</span>' : '<span class="badge badge-saida">BLOQUEADO</span>') + '</td>' +
+        '<td class="acao">' +
+          (ativo
+            ? '<button class="btn btn-ghost btn-sm" data-master-block="' + esc(x.id) + '">🔒 Bloquear</button>'
+            : '<button class="btn btn-gold btn-sm" data-master-activate="' + esc(x.id) + '">✅ Ativar</button>') +
+          '<button class="btn btn-ghost btn-sm" data-master-plano="' + esc(x.id) + '">⚙️ Plano</button>' +
+        '</td></tr>';
+    }).join('');
+    // Ações (delegado)
+    corpo.querySelectorAll('[data-master-activate]').forEach(function (b) {
+      b.onclick = async function () { await setTenantAtivo(b.getAttribute('data-master-activate'), true); };
+    });
+    corpo.querySelectorAll('[data-master-block]').forEach(function (b) {
+      b.onclick = async function () { await setTenantAtivo(b.getAttribute('data-master-block'), false); };
+    });
+    corpo.querySelectorAll('[data-master-plano]').forEach(function (b) {
+      b.onclick = async function () {
+        var id = b.getAttribute('data-master-plano');
+        var plano = prompt('Plano (essencial / pro / premium):', 'pro');
+        if (!plano) return;
+        if (!['essencial', 'pro', 'premium'].includes(plano)) { toast('Plano inválido.'); return; }
+        var r = await api('/api/master/tenants/' + id, { method: 'PUT', body: JSON.stringify({ ativo: true, plano: plano }) });
+        toast(r.ok ? 'Plano atualizado!' : (r.error || 'Erro.'));
+        carregarClientesPlataforma();
+      };
+    });
+  }
+  async function setTenantAtivo(id, ativo) {
+    if (!EU_SOU_MASTER) return;
+    var ok = confirm(ativo ? 'Autorizar/ativar esta barbearia?' : 'BLOQUEAR esta barbearia? O site dela sairá do ar.');
+    if (!ok) return;
+    var r = await api('/api/master/tenants/' + id, { method: 'PUT', body: JSON.stringify({ ativo: ativo, plano: 'pro' }) });
+    toast(r.ok ? (ativo ? 'Barbearia ativada! ✅' : 'Barbearia bloqueada! 🔒') : (r.error || 'Erro.'));
+    carregarClientesPlataforma();
+  }
+  // Criar nova barbearia (master)
+  var btnCriar = $('#btnCriarClientePlataforma');
+  if (btnCriar) btnCriar.onclick = async function () {
+    var slug = (prompt('Slug (endereço. ex: joao):', '') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (!slug) return;
+    var nome = (prompt('Nome da barbearia:', '') || '').trim();
+    if (!nome) return;
+    var whatsapp = (prompt('WhatsApp (com DDD, ex: 31999998888):', '') || '').replace(/\D/g, '');
+    var cidade = (prompt('Cidade:', '') || '').trim();
+    var plano = prompt('Plano (essencial/pro/premium):', 'pro');
+    if (plano && !['essencial','pro','premium'].includes(plano)) { toast('Plano inválido.'); return; }
+    var r = await api('/api/master/tenants', { method: 'POST', body: JSON.stringify({ slug: slug, nome: nome, whatsapp: whatsapp, cidade: cidade, plano: plano || 'pro' }) });
+    toast(r.ok ? 'Barbearia criada! Você pode ativá-la abaixo. ✅' : (r.error || 'Erro.'));
+    carregarClientesPlataforma();
+  };
+
   /* ---------- Init ---------- */
   carregarDashboard();
   // Pré-carrega serviços e clientes (para Editar/Agendar abrirem na hora)
   try { garantirServicos(); garantirClientes(); } catch (_) {}
+  // Prelo, se master, carrega a lista de clientes da plataforma
+  if (EU_SOU_MASTER) carregarClientesPlataforma();
 })();

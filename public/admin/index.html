@@ -26,7 +26,7 @@
         <button class="nav-item" data-tab="relatorio"><span class="ico">📈</span> Relatório</button>
         <button class="nav-item" data-tab="auditoria"><span class="ico">🕵️</span> Auditoria</button>
         <button class="nav-item" data-tab="config"><span class="ico">⚙️</span> Configurações</button>
-        <button class="nav-item" data-tab="previews" hidden><span class="ico">🎯</span> Prévias</button>
+        <button class="nav-item" data-tab="clientesPlataforma" id="tabBtnClientesPlataforma" hidden><span class="ico">🏢</span> Clientes (barbearias)</button>
       </nav>
       <div class="sidebar-bottom">
         <a class="link-site" href="/tv" target="_blank">📺 Painel da TV</a>
@@ -286,39 +286,21 @@
         </div>
       </section>
 
-      <!-- PRÉVIAS (master) -->
-      <section id="tab-previews" hidden>
-        <div class="card" style="max-width:820px;">
-          <h3>🎯 Nova prévia personalizada</h3>
-          <p style="color:var(--muted);font-size:.85rem;margin:.5rem 0 1rem;">
-            Preencha com os dados públicos do prospect (Instagram/Google). A prévia fica em
-            <b style="color:var(--gold,#C9A86A)">brbpro.com.br/{slug}</b> — mande o link com o script:
-            <i>“Fiz uma prévia de como ficaria o site de vocês. Levei uns minutos pra montar. Dá uma olhada.”</i>
-          </p>
-          <div class="form-grid">
-            <label class="field"><span>Nome da barbearia *</span><input type="text" id="pvNome" maxlength="80" placeholder="Ex.: Barbearia do Zé" /></label>
-            <div class="form-row">
-              <label class="field"><span>Cidade</span><input type="text" id="pvCidade" maxlength="60" placeholder="Ex.: Ouro Preto" /></label>
-              <label class="field"><span>Instagram (sem @)</span><input type="text" id="pvInsta" maxlength="40" placeholder="Ex.: barberiadose" /></label>
+      <section id="tab-clientesPlataforma" hidden>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;">
+            <div>
+              <h3 style="margin:0;">🏢 Clientes (barbearias) da plataforma</h3>
+              <p class="muted" style="margin:.25rem 0 0;">Autorize, bloqueie ou crie o site de cada barbearia.</p>
             </div>
-            <label class="field"><span>Endereço (se estiver no Google)</span><input type="text" id="pvEndereco" maxlength="120" placeholder="Ex.: R. Direita, 123 — Centro" /></label>
-            <div class="form-row">
-              <label class="field"><span>Cor da marca (opcional)</span><input type="color" id="pvCor" value="#C9A86A" /></label>
-              <div></div>
-            </div>
-            <label class="field"><span>Serviços e preços — um por linha: <b>Nome | preço</b></span>
-              <textarea id="pvServicos" rows="5" placeholder="Corte | 40&#10;Barba | 25&#10;Combo Corte + Barba | 60"></textarea>
-            </label>
-            <div style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;">
-              <button class="btn btn-gold" id="btnCriarPrev">Gerar prévia</button>
-              <span id="pvStatus" style="font-size:.85rem;color:var(--muted)"></span>
-            </div>
+            <button class="btn btn-gold" id="btnCriarClientePlataforma">➕ Criar barbearia</button>
           </div>
-          <div id="pvResultado" hidden style="margin-top:1rem;padding:1rem;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.03);"></div>
-        </div>
-        <div class="card" style="max-width:820px;margin-top:1rem;">
-          <h3>Prévias criadas</h3>
-          <div id="pvLista" style="margin-top:.6rem;"></div>
+          <div style="overflow-x:auto;">
+            <table class="tabela" style="width:100%;">
+              <thead><tr><th>Barbearia</th><th>Cidade</th><th>Plano</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody id="clientesPlataformaCorpo"><tr><td colspan="5" class="vazio">Carregando...</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </section>
     </main>
@@ -331,6 +313,6 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="/admin/admin.js?v=15"></script>
+  <script src="/admin/admin.js?v=13"></script>
 </body>
 </html>
