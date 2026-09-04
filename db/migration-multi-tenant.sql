@@ -206,3 +206,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_agendamento_unico_tenant
 -- SEED — Cria usuário master se não existir (email: admin@brbpro.com.br)
 -- Senha inicial definida por hash (gerar com: npm run hash "senha")
 -- ============================================================
+
+-- ============================================================
+-- PERSONALIZAÇÃO DO SITE POR CLIENTE (v2)
+-- Cada barbearia tem seu próprio conteúdo (não herda da Art na Régua)
+-- ============================================================
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS logo         TEXT;            -- data URL (base64) do logo do cliente
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS video_hero   TEXT;            -- data URL (mp4/webm) ou URL do vídeo de fundo
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS hero_imagem  TEXT;            -- data URL da imagem de fundo do hero
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS slogan       TEXT;            -- hashtag/frase curta
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS hero_titulo  TEXT;            -- título principal (fallback = nome)
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS hero_sub     TEXT;            -- subtítulo do hero
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS sobre_texto  TEXT;            -- parágrafo "sobre"
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS cor_secundaria TEXT DEFAULT '#B08D57';
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS fonte_titulo TEXT;            -- nome da fonte p/ títulos
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS ia_ativo BOOLEAN DEFAULT FALSE; -- reservado

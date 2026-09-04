@@ -900,6 +900,7 @@
           (ativo
             ? '<button class="btn btn-ghost btn-sm" data-master-block="' + esc(x.id) + '">🔒 Bloquear</button>'
             : '<button class="btn btn-gold btn-sm" data-master-activate="' + esc(x.id) + '">✅ Ativar</button>') +
+          '<button class="btn btn-ghost btn-sm" data-master-custom="' + esc(x.id) + '">🎨 Personalizar</button>' +
           '<button class="btn btn-ghost btn-sm" data-master-plano="' + esc(x.id) + '">⚙️ Plano</button>' +
         '</td></tr>';
     }).join('');
@@ -909,6 +910,9 @@
     });
     corpo.querySelectorAll('[data-master-block]').forEach(function (b) {
       b.onclick = async function () { await setTenantAtivo(b.getAttribute('data-master-block'), false); };
+    });
+    corpo.querySelectorAll('[data-master-custom]').forEach(function (b) {
+      b.onclick = async function () { await abrirPersonalizacao(b.getAttribute('data-master-custom')); };
     });
     corpo.querySelectorAll('[data-master-plano]').forEach(function (b) {
       b.onclick = async function () {
@@ -922,6 +926,64 @@
       };
     });
   }
+
+  // Abre o modal de PERSONALIZAÇÃO completa do site do cliente
+  async function abrirPersonalizacao(id) {
+    var j = await api('/api/master/tenants/' + id);
+    if (!j.ok) { toast(j.error || 'Erro ao carregar.'); return; }
+    var t = j.tenant || {};
+    var h = '<h3>🎨 Personalizar site</h3>' +
+      '<div class="form-grid" style="max-height:62vh;overflow:auto;padding-right:6px;">' +
+      '<label class="field"><span>Nome / marca</span><input id="pNome" value="' + esc(t.nome||'') + '" /></label>' +
+      '<label class="field"><span>WhatsApp (com DDD)</span><input id="pWhats" value="' + esc(t.whatsapp||'') + '" /></label>' +
+      '<label class="field"><span>Instagram (@usuario)</span><input id="pInsta" value="' + esc(t.instagram||'') + '" /></label>' +
+      '<label class="field"><span>Endereço</span><input id="pEnd" value="' + esc(t.endereco||'') + '" /></label>' +
+      '<label class="field"><span>Cidade</span><input id="pCidade" value="' + esc(t.cidade||'') + '" /></label>' +
+      '<label class="field"><span>Slogan / frase</span><input id="pSlogan" value="' + esc(t.slogan||'') + '" /></label>' +
+      '<label class="field"><span>Título do topo</span><input id="pHeroT" value="' + esc(t.hero_titulo||'') + '" placeholder="Nome da barbearia" /></label>' +
+      '<label class="field"><span>Subtítulo do topo</span><input id="pHeroS" value="' + esc(t.hero_sub||'') + '" /></label>' +
+      '<label class="field"><span>Texto "sobre"</span><textarea id="pSobre" rows="3">' + esc(t.sobre_texto||'') + '</textarea></label>' +
+      '<div style="display:flex;gap:.6rem;flex-wrap:wrap;">' +
+        '<label class="field" style="flex:1;min-width:120px;"><span>Cor principal</span><input type="color" id="pCorP" value="' + esc(t.cor_primaria||'#C9A86A') + '" /></label>' +
+        '<label class="field" style="flex:1;min-width:120px;"><span>Cor secundária</span><input type="color" id="pCorS" value="' + esc(t.cor_secundaria||'#B08D57') + '" /></label>' +
+      '</div>' +
+      '<label class="field"><span>Logo (clique p/ enviar)</span><input type="file" id="pLogo" accept="image/*" /></label>' +
+      '<label class="field"><span>Imagem de fundo (topo)</span><input type="file" id="pHeroImg" accept="image/*" /></label>' +
+      '<label class="field"><span>Vídeo de fundo (opcional, max ~5MB)</span><input type="file" id="pVideo" accept="video/*" /></label>' +
+      '</div>' +
+      '<div style="margin-top:1rem;display:flex;gap:.6rem;justify-content:flex-end;">' +
+        '<button class="btn btn-ghost" data-custom-cancel>Cancelar</button>' +
+        '<button class="btn btn-gold" data-custom-save>💾 Salvar e publicar</button>' +
+      '</div>';
+    modal(h);
+    document.querySelector('[data-custom-cancel]').onclick = function(){ fecharModal(); };
+    document.querySelector('[data-custom-save]').onclick = async function () {
+      var body = { nome: val('#pNome'), whatsapp: val('#pWhats'), instagram: val('#pInsta'), endereco: val('#pEnd'), cidade: val('#pCidade'), slogan: val('#pSlogan'), hero_titulo: val('#pHeroT'), hero_sub: val('#pHeroS'), sobre_texto: val('#pSobre'), cor_primaria: val('#pCorP'), cor_secundaria: val('#pCorS'), tema: 'dark' };
+      toast('Enviando e publicando...');
+      try {
+        body.logo = await lerArquivo('#pLogo', 700000);
+        body.hero_imagem = await lerArquivo('#pHeroImg', 1200000);
+        body.video_hero = await lerArquivo('#pVideo', 6000000);
+      } catch (e) { toast(e.message); return; }
+      var r = await api('/api/master/tenants/' + id + '/personalizar', { method: 'PUT', body: JSON.stringify(body) });
+      if (r.ok) { toast('Site personalizado e publicado! ✅'); fecharModal(); }
+      else toast(r.error || 'Erro ao salvar.');
+    };
+    // helpers locais
+    function val(sel){ var e=document.querySelector(sel); return e ? e.value : ''; }
+    function lerArquivo(sel, max){
+      return new Promise(function(res, rej){
+        var e=document.querySelector(sel);
+        if (!e || !e.files || !e.files[0]) return res(undefined);
+        var f=e.files[0];
+        if (f.size > max) return rej(new Error('Arquivo muito grande (máx ' + Math.round(max/1024/1024) + 'MB).'));
+        var fr=new FileReader();
+        fr.onload=function(){ res(fr.result); };
+        fr.onerror=function(){ rej(new Error('Erro ao ler arquivo.')); };
+        fr.readAsDataURL(f);
+      });
+    }
+  }
   async function setTenantAtivo(id, ativo) {
     if (!EU_SOU_MASTER) return;
     var ok = confirm(ativo ? 'Autorizar/ativar esta barbearia?' : 'BLOQUEAR esta barbearia? O site dela sairá do ar.');
@@ -930,20 +992,42 @@
     toast(r.ok ? (ativo ? 'Barbearia ativada! ✅' : 'Barbearia bloqueada! 🔒') : (r.error || 'Erro.'));
     carregarClientesPlataforma();
   }
-  // Criar nova barbearia (master)
+  // Criar nova barbearia (master) — com personalização inicial
   var btnCriar = $('#btnCriarClientePlataforma');
   if (btnCriar) btnCriar.onclick = async function () {
-    var slug = (prompt('Slug (endereço. ex: joao):', '') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-    if (!slug) return;
-    var nome = (prompt('Nome da barbearia:', '') || '').trim();
-    if (!nome) return;
-    var whatsapp = (prompt('WhatsApp (com DDD, ex: 31999998888):', '') || '').replace(/\D/g, '');
-    var cidade = (prompt('Cidade:', '') || '').trim();
-    var plano = prompt('Plano (essencial/pro/premium):', 'pro');
-    if (plano && !['essencial','pro','premium'].includes(plano)) { toast('Plano inválido.'); return; }
-    var r = await api('/api/master/tenants', { method: 'POST', body: JSON.stringify({ slug: slug, nome: nome, whatsapp: whatsapp, cidade: cidade, plano: plano || 'pro' }) });
-    toast(r.ok ? 'Barbearia criada! Você pode ativá-la abaixo. ✅' : (r.error || 'Erro.'));
-    carregarClientesPlataforma();
+    var h = '<h3>➕ Nova barbearia</h3><div class="form-grid">' +
+      '<label class="field"><span>Slug (endereço final)*</span><input id="cSlug" placeholder="joao" /></label>' +
+      '<label class="field"><span>Nome / marca*</span><input id="cNome" placeholder="Barbearia do João" /></label>' +
+      '<label class="field"><span>WhatsApp (com DDD)</span><input id="cWhats" placeholder="31999998888" /></label>' +
+      '<label class="field"><span>Cidade</span><input id="cCidade" placeholder="Ouro Preto" /></label>' +
+      '<label class="field"><span>Slogan (frase do topo)</span><input id="cSlogan" placeholder="Estilo que define você" /></label>' +
+      '<label class="field"><span>Cor principal</span><input type="color" id="cCor" value="#C9A86A" /></label>' +
+      '<label class="field"><span>Plano</span><select id="cPlano"><option value="pro">pro</option><option value="essencial">essencial</option><option value="premium">premium</option></select></label>' +
+      '</div>' +
+      '<div style="margin-top:1rem;display:flex;gap:.6rem;justify-content:flex-end;">' +
+        '<button class="btn btn-ghost" data-criar-cancel>Cancelar</button>' +
+        '<button class="btn btn-gold" data-criar-go>Criar barbearia</button></div>';
+    modal(h);
+    document.querySelector('[data-criar-cancel]').onclick = function(){ fecharModal(); };
+    document.querySelector('[data-criar-go]').onclick = async function () {
+      var slug = (document.querySelector('#cSlug').value||'').trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
+      var nome = (document.querySelector('#cNome').value||'').trim();
+      if (!slug) { toast('Informe o slug.'); return; }
+      if (!nome) { toast('Informe o nome.'); return; }
+      var whatsapp = (document.querySelector('#cWhats').value||'').replace(/\D/g,'');
+      var cidade = (document.querySelector('#cCidade').value||'').trim();
+      var slogan = (document.querySelector('#cSlogan').value||'').trim();
+      var cor = (document.querySelector('#cCor').value||'#C9A86A');
+      var plano = (document.querySelector('#cPlano').value||'pro');
+      var r = await api('/api/master/tenants', { method: 'POST', body: JSON.stringify({ slug: slug, nome: nome, whatsapp: whatsapp, cidade: cidade, plano: plano }) });
+      if (r.ok) {
+        // já aplica slogan e cor na criação
+        await api('/api/master/tenants/' + r.id + '/personalizar', { method: 'PUT', body: JSON.stringify({ slogan: slogan, cor_primaria: cor, cor_secundaria: cor }) });
+        toast('Barbearia "' + nome + '" criada! Agora clique em 🎨 Personalizar para logo/fotos. ✅');
+        fecharModal();
+        carregarClientesPlataforma();
+      } else toast(r.error || 'Erro.');
+    };
   };
 
   /* ---------- Init ---------- */
