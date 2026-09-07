@@ -930,43 +930,53 @@
     corpo.querySelectorAll('[data-master-reset]').forEach(function (b) {
       b.onclick = async function () {
         var id = b.getAttribute('data-master-reset');
+        // Passo 1: confirma
         if (!confirm('Resetar a senha do administrador deste cliente? Uma nova senha será gerada.')) return;
         var r = await api('/api/master/tenants/' + id + '/reset-senha', { method: 'POST' });
-        if (r.ok) {
-          // Exibe modal com a senha e botão de COPIAR (para enviar ao cliente)
-          var h = '<h3>🔑 Nova senha gerada</h3>' +
-            '<p class="muted" style="margin:.4rem 0 1rem;">Envie estes dados ao cliente. Guarde-os com segurança.</p>' +
-            '<div class="campo-senha">' +
-              '<div><span class="muted" style="font-size:.8rem">Acesso (e-mail)</span>' +
-              '<div style="font-weight:700;word-break:break-all;">' + esc(r.email) + '</div></div>' +
-              '<div style="margin-top:.6rem;"><span class="muted" style="font-size:.8rem">Nova senha</span>' +
-              '<div id="senhaGerada" style="font-size:1.5rem;font-weight:800;color:#C9A86A;letter-spacing:1px;user-select:all;cursor:pointer;">' + esc(r.senha) + '</div></div>' +
-            '</div>' +
-            '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.1rem;">' +
-              '<button class="btn btn-gold" data-copiar-senha>📋 Copiar senha</button>' +
-              '<button class="btn btn-ghost" data-copiar-tudo>📋 Copiar e-mail + senha</button>' +
-              '<button class="btn btn-ghost" data-copiar-msg>💬 Copiar mensagem p/ cliente</button>' +
-            '</div>' +
-            '<div style="margin-top:.6rem;display:flex;justify-content:flex-end;"><button class="btn btn-ghost" data-copiar-fechar>Fechar</button></div>';
-          modal(h);
-          var tel = (r.telefone || (window.BRB_TENANT && window.BRB_TENANT.whatsapp) || '');
-          // função de copiar com fallback
-          function copiarTexto(txt) {
-            var done = function(){ toast('Copiado! 📋'); };
-            var fail = function(){ toast('Não foi possível copiar automaticamente. Selecione e copie.'); };
-            if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(done).catch(fail); }
-            else { try { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); } catch(e){ fail(); } }
-          }
-          document.querySelector('[data-copiar-senha]').onclick = function(){ copiarTexto(r.senha); };
-          document.querySelector('[data-copiar-tudo]').onclick = function(){ copiarTexto(r.email + ' | ' + r.senha); };
-          document.querySelector('[data-copiar-msg]').onclick = function(){
-            copiarTexto('Olá! Voce e dono(a) de ' + r.nome + '.\n\nSua area administrativa: ' + (location.origin) + '/admin/\nE-mail: ' + r.email + '\nSenha: ' + r.senha + '\n\nAcesse e troque a senha em Configuracoes, se quiser.');
-          };
-          document.querySelector('[data-copiar-fechar]').onclick = function(){ fecharModal(); };
-          toast('Senha resetada!');
-        } else {
-          toast(r.error || 'Não foi possível resetar.');
+        if (!r.ok) { toast(r.error || 'Não foi possível resetar.'); carregarClientesPlataforma(); return; }
+        // Passo 2: modal de escolha (quem recebe + meio)
+        var emailOwner = r.email || '';
+        var whats = r.whatsapp || '';
+        var h = '<h3>🔑 Nova senha gerada para <span style="color:#C9A86A">' + esc(r.nome) + '</span></h3>' +
+          '<div class="campo-senha" style="margin-bottom:1rem;">' +
+            '<div style="font-size:1.6rem;font-weight:800;color:#C9A86A;letter-spacing:1px;user-select:all;cursor:pointer;" id="senhaGerada">' + esc(r.senha) + '</div>' +
+            '<button class="btn btn-ghost btn-sm" style="margin-top:.4rem;" data-copiar-senha>📋 Copiar apenas a senha</button>' +
+          '</div>' +
+          '<label style="display:block;margin:.4rem 0 .2rem;"><span class="muted" style="font-size:.82rem">Quem recebe (e-mail do admin):</span></label>' +
+          '<select id="selDest" style="width:100%;padding:.5rem;">' +
+            '<option value="' + esc(emailOwner) + '">' + esc(emailOwner) + ' (' + esc(r.nome) + ')</option>' +
+            '<option value="__outro__">✏️ Outro e-mail…</option>' +
+          '</select>' +
+          '<input id="outroEmail" placeholder="Digite o e-mail de destino" style="width:100%;padding:.5rem;margin-top:.4rem;display:none;" />' +
+          '<label style="display:block;margin:.9rem 0 .2rem;"><span class="muted" style="font-size:.82rem">Meio de envio:</span></label>' +
+          '<div style="display:flex;gap:.6rem;flex-wrap:wrap;">' +
+            '<button class="btn btn-gold" data-enviar-whats>📱 Enviar pelo WhatsApp</button>' +
+            '<button class="btn btn-ghost" data-enviar-email>✉️ Abrir e-mail</button>' +
+            '<button class="btn btn-ghost" data-copiar-msg>💬 Copiar mensagem</button>' +
+          '</div>' +
+          '<div style="margin-top:.5rem;text-align:right;"><button class="btn btn-ghost" data-fechar-reset>Fechar</button></div>';
+        modal(h);
+        var sel = document.querySelector('#selDest');
+        var outro = document.querySelector('#outroEmail');
+        sel.addEventListener('change', function(){ outro.style.display = (sel.value==='__outro__') ? 'block' : 'none'; });
+        function dest(){ return (sel.value==='__outro__') ? (outro.value || emailOwner) : sel.value; }
+        function montarMsg(destEmail){
+          return 'Olá! ' + r.nome + ',\n\nSua área administrativa da barbearia:\n' + location.origin + '/admin/\nE-mail: ' + destEmail + '\nSenha: ' + r.senha + '\n\nEntre e, se quiser, troque a senha em Configurações.\n— ' + (window.BRB_TENANT&&window.BRB_TENANT.nome||'BRB Pro');
         }
+        function copiar(txt){ var done=function(){toast('Copiado! 📋');}; var fail=function(){toast('Selecione e copie.');}; if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done).catch(fail);} else { try{var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done();}catch(e){fail();} } }
+        document.querySelector('[data-copiar-senha]').onclick = function(){ copiar(r.senha); };
+        document.querySelector('[data-copiar-msg]').onclick = function(){ copiar(montarMsg(dest())); };
+        document.querySelector('[data-enviar-whats]').onclick = function(){
+          var num = (whats||'').replace(/\D/g,''); if(!num){toast('Cliente sem WhatsApp cadastrado.');return;}
+          var msg = encodeURIComponent(montarMsg(dest()));
+          window.open('https://wa.me/'+num+'?text='+msg,'_blank');
+        };
+        document.querySelector('[data-enviar-email]').onclick = function(){
+          var d = dest(); var subj=encodeURIComponent('Seus dados de acesso'); var b=encodeURIComponent(montarMsg(d));
+          window.location.href='mailto:'+d+'?subject='+subj+'&body='+b;
+        };
+        document.querySelector('[data-fechar-reset]').onclick = function(){ fecharModal(); };
+        toast('Senha resetada!');
         carregarClientesPlataforma();
       };
     });
