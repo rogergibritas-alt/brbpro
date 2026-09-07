@@ -897,8 +897,9 @@ app.post('/api/master/tenants/:id/reset-senha', requireAuth, requireTenantOwner,
   if (!u.rows.length) return res.status(404).json({ ok: false, error: 'Este cliente ainda não tem um administrador criado. Crie-o no painel antes de resetar a senha.' });
   const hash = bcrypt.hashSync(nova, 12);
   await pool.query('UPDATE users SET senha_hash=$1, ativo=TRUE WHERE tenant_id=$2', [hash, id]);
+  const bt = await pool.query('SELECT whatsapp FROM barbershops WHERE id=$1', [id]).catch(() => ({ rows: [] }));
   registrarLog(req, 'master', 'reset_senha', `Senha do admin de ${id} resetada`);
-  res.json({ ok: true, email: u.rows[0].email, nome: u.rows[0].nome, senha: nova });
+  res.json({ ok: true, email: u.rows[0].email, nome: u.rows[0].nome, senha: nova, whatsapp: (bt.rows[0] && bt.rows[0].whatsapp) || null });
 });
 
 // Detalhe completo de uma barbearia (para o painel de personalização do master)
