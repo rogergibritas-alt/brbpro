@@ -222,3 +222,11 @@ ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS cor_secundaria TEXT DEFAULT '#B
 ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS fonte_titulo TEXT;            -- nome da fonte p/ títulos
 ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS ia_ativo BOOLEAN DEFAULT FALSE; -- reservado
 ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS intro_video TEXT;        -- vídeo de introdução do site (data URL)
+
+-- ============================================================
+-- IDENTIDADE / FRASES DE IMPACTO POR CLIENTE (v3)
+-- Cada barbearia tem seus próprios textos (não herda da Art na Régua)
+-- ============================================================
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS diferenciais JSONB;   -- [{titulo,texto} x4]
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS depoimentos JSONB;    -- [{texto,autor} x3]
+ALTER TABLE barbershops ADD COLUMN IF NOT EXISTS hero_sub_personalizado TEXT;

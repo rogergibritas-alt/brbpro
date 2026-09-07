@@ -902,6 +902,8 @@
             : '<button class="btn btn-gold btn-sm" data-master-activate="' + esc(x.id) + '">✅ Ativar</button>') +
           '<button class="btn btn-ghost btn-sm" data-master-custom="' + esc(x.id) + '">🎨 Personalizar</button>' +
           '<button class="btn btn-ghost btn-sm" data-master-plano="' + esc(x.id) + '">⚙️ Plano</button>' +
+          '<button class="btn btn-ghost btn-sm" data-master-reset="' + esc(x.id) + '">🔑 Reset senha</button>' +
+          '<button class="btn btn-ghost btn-sm" data-master-del="' + esc(x.id) + '">🗑️ Excluir</button>' +
         '</td></tr>';
     }).join('');
     // Ações (delegado)
@@ -922,6 +924,31 @@
         if (!['essencial', 'pro', 'premium'].includes(plano)) { toast('Plano inválido.'); return; }
         var r = await api('/api/master/tenants/' + id, { method: 'PUT', body: JSON.stringify({ ativo: true, plano: plano }) });
         toast(r.ok ? 'Plano atualizado!' : (r.error || 'Erro.'));
+        carregarClientesPlataforma();
+      };
+    });
+    corpo.querySelectorAll('[data-master-reset]').forEach(function (b) {
+      b.onclick = async function () {
+        var id = b.getAttribute('data-master-reset');
+        if (!confirm('Resetar a senha do administrador deste cliente? Uma nova senha será gerada.')) return;
+        var r = await api('/api/master/tenants/' + id + '/reset-senha', { method: 'POST' });
+        if (r.ok) {
+          alert('Senha do admin resetada!\n\nAcesso: ' + r.email + '\nNova senha: ' + r.senha + '\n\nGuarde e envie ao cliente.');
+          toast('Senha resetada!');
+        } else {
+          toast(r.error || 'Não foi possível resetar.');
+        }
+        carregarClientesPlataforma();
+      };
+    });
+    corpo.querySelectorAll('[data-master-del]').forEach(function (b) {
+      b.onclick = async function () {
+        var id = b.getAttribute('data-master-del');
+        var nome = (b.closest('tr') || {}).querySelector ? '' : '';
+        if (!confirm('⚠️ EXCLUIR este cliente PERMANENTEMENTE?\n\nTodos os dados (site, agenda, clientes, fotos, caixa, estoque) serão apagados.\nEsta ação NÃO pode ser desfeita.')) return;
+        if (!confirm('Tem certeza? Digite OK para confirmar. (Isso apaga tudo)')) return;
+        var r = await api('/api/master/tenants/' + id, { method: 'DELETE' });
+        toast(r.ok ? 'Cliente excluído. 🗑️' : (r.error || 'Erro ao excluir.'));
         carregarClientesPlataforma();
       };
     });
