@@ -865,6 +865,42 @@ app.put('/api/master/tenants/:id', requireAuth, requireTenantOwner, async (req, 
   res.json({ ok: true });
 });
 
+// EXCLUIR cliente (barbearia) por completo (master)
+app.delete('/api/master/tenants/:id', requireAuth, requireTenantOwner, async (req, res) => {
+  if (!pool) return semBanco(res);
+  if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
+  const id = String(req.params.id);
+  if (!id || id.length < 3 || !/^[a-z0-9-]+$/.test(id)) return res.status(400).json({ ok: false, error: 'id inválido.' });
+  // Protege os tenants de sistema
+  if (['artnaregua', 'demo', 'teste'].includes(id)) return res.status(400).json({ ok: false, error: 'Este é um tenant de sistema (não pode ser excluído).' });
+  try {
+    // Remove em cascata (as tabelas têm ON DELETE CASCADE por tenant_id)
+    await pool.query('DELETE FROM barbershops WHERE id=$1', [id]);
+    invalidarTenant(id);
+    registrarLog(req, 'master', 'excluiu', `Cliente ${id} excluído`);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[excluir]', e.message);
+    res.status(500).json({ ok: false, error: 'Erro ao excluir. Verifique se não há referências.' });
+  }
+});
+
+// RESETAR senha do admin de um cliente (master) — gera uma nova senha aleatória e devolve
+app.post('/api/master/tenants/:id/reset-senha', requireAuth, requireTenantOwner, async (req, res) => {
+  if (!pool) return semBanco(res);
+  if (req.user.role !== 'master') return res.status(403).json({ ok: false, error: 'Apenas master.' });
+  const id = String(req.params.id);
+  // nova senha aleatória segura
+  const nova = crypto.randomBytes(9).toString('base64url');
+  // Acha um usuário do tenant (owner; se vários, o primeiro owner e os outros geralmente são staff)
+  const u = await pool.query("SELECT email, nome FROM users WHERE tenant_id=$1 ORDER BY (role='owner') DESC LIMIT 1", [id]);
+  if (!u.rows.length) return res.status(404).json({ ok: false, error: 'Este cliente ainda não tem um administrador criado. Crie-o no painel antes de resetar a senha.' });
+  const hash = bcrypt.hashSync(nova, 12);
+  await pool.query('UPDATE users SET senha_hash=$1, ativo=TRUE WHERE tenant_id=$2', [hash, id]);
+  registrarLog(req, 'master', 'reset_senha', `Senha do admin de ${id} resetada`);
+  res.json({ ok: true, email: u.rows[0].email, nome: u.rows[0].nome, senha: nova });
+});
+
 // Detalhe completo de uma barbearia (para o painel de personalização do master)
 app.get('/api/master/tenants/:id', requireAuth, requireTenantOwner, async (req, res) => {
   if (!pool) return semBanco(res);
@@ -989,6 +1025,31 @@ async function serveTenantSite(req, res) {
   const heroSub = t.hero_sub || 'Corte, barba e estilo com acabamento impecável. Agende pelo WhatsApp.';
   const slogan = t.slogan ? `<span class="hero-kicker" data-reveal>${esc(t.slogan)}</span>` : `<span class="hero-kicker" data-reveal>${esc(cidade ? 'Barbearia em ' + (t.cidade||'') : 'Barbearia')}</span>`;
   const sobre = t.sobre_texto || `Na ${esc(nome)}, cada atendimento é feito com atenção total. O objetivo é simples — você sair se sentindo a melhor versão de si.`;
+
+  // IDENTIDADE PRÓPRIA: diferenciais e depoimentos personalizados por cliente (não herda da Art na Régua)
+  const emojisDif = ['✂️','⏱️','💰','🤝'];
+  function jsonArr(v) { // pg devolve JSONB já como objeto/array; se for string, faz parse
+    if (!v) return [];
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'object') { try { return Array.isArray(v) ? v : Object.values(v); } catch (e) { return []; } }
+    try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch (e) { return []; }
+  }
+  const difs = jsonArr(t.diferenciais);
+  if (difs && difs.length) {
+    const difHtml = difs.slice(0,4).map(function(d, i){
+      return `<div class="dif" data-reveal><span class="dif-emoji">${emojisDif[i]||'⭐'}</span><h3>${esc(d.titulo||'')}</h3><p>${esc(d.texto||'')}</p></div>`;
+    }).join('');
+    html = html.replace(/(<div class="diferenciais-grid">)[\s\S]*?(<\/div>\s*<\/div>\s*<\/section>)/, `$1${difHtml}$2`);
+    // cabeçalho do bloco "diferente" (título/intro)
+    if (t.diferenciais_titulo) html = html.replace(/(<h2>O que faz a gente <em>diferente<\/em><\/h2>)/, `<h2>${esc(t.diferenciais_titulo)}</h2>`);
+  }
+  const deps = jsonArr(t.depoimentos);
+  if (deps && deps.length) {
+    const depHtml = deps.slice(0,3).map(function(d){
+      return `<div class="depo" data-reveal><div class="stars">★★★★★</div><p>"${esc(d.texto||'')}"</p><span class="depo-nome">— ${esc(d.autor||'Cliente')}</span></div>`;
+    }).join('');
+    html = html.replace(/(<div class="depo-grid">)[\s\S]*?(<\/div>\s*<\/div>\s*<\/section>)/, `$1${depHtml}$2`);
+  }
   // Mídia por URL (evita embutir base64 pesado no HTML)
   const logoUrl = t.logo && String(t.logo).startsWith('data:') ? `/m/${t.slug}/logo` : '';
   const heroUrl = t.hero_imagem && String(t.hero_imagem).startsWith('data:') ? `/m/${t.slug}/hero` : '';
