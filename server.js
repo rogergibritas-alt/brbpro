@@ -1204,9 +1204,12 @@ app.get('/', async (req, res) => {
 
 // Painel admin — HTMLs com cache-busting (JS/CSS sempre na versão do deploy) e no-cache
 app.use('/admin', function (req, res, next) {
+  // Normaliza: '/admin' e '/admin/' -> index.html do painel
   const rel = req.path.replace(/^\//, '');
-  const fp = path.join(__dirname, 'public', 'admin', rel);
-  if ((/login\.html$|\.html$/i.test(req.path)) && fs.existsSync(fp) && fs.statSync(fp).isFile()) {
+  const isIndex = (rel === '' || rel === 'admin' || rel === '/');
+  const file = isIndex ? 'index.html' : rel;
+  const fp = path.join(__dirname, 'public', 'admin', file);
+  if ((isIndex || /\.html$/i.test(req.path)) && fs.existsSync(fp) && fs.statSync(fp).isFile()) {
     let html = fs.readFileSync(fp, 'utf8');
     // Marca do tenant no painel (logo + nome) — não mostrar "Art na Régua"
     const t = req.tenant;
@@ -1214,7 +1217,6 @@ app.use('/admin', function (req, res, next) {
     const logo = (t && t.logo && String(t.logo).startsWith('data:')) ? `/m/${t.slug}/logo` : '';
     if (t && t.slug) {
       if (logo) html = html.replace(/<img[^>]*logo-icon\.png[^>]*>/i, `<img src="${logo}" alt="${esc(nome)}" />`);
-      // troca o texto "Art na Régua"/"Art <b>na Régua</b>" pelo nome
       html = html.replace(/Art\s+<b>\s*na\s*R[eé]gua\s*<\/b>/gi, esc(nome));
       html = html.replace(/Art\s+na\s+R[eé]gua/gi, esc(nome));
     }
