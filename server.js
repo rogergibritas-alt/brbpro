@@ -1118,6 +1118,20 @@ async function serveTenantSite(req, res) {
   html = html.replace(/N[ãa] r[eé]gua/gi, esc(nome));
   html = html.replace(/na r[eé]gua/gi, 'no ponto');
   html = html.replace(/A r[eé]gua/gi, 'A régua'); // mantém se for nome próprio residual
+  // Telefone/whatsapp do cliente substitui o da Art na Régua (JSON-LD e bloco de contato)
+  if (t.whatsapp && String(t.whatsapp).replace(/\D/g,'').length >= 10) {
+    const wdig = String(t.whatsapp).replace(/\D/g,'');
+    // Normaliza para 11 dígitos (DDD + número) ignorando o +55 do país
+    const local = /^55/.test(wdig) && wdig.length === 13 ? wdig.slice(2) : wdig; // '31987855615'
+    const ddd = local.slice(0,2);
+    const num = local.slice(2);
+    const numFmt = num.length === 9 ? (num.slice(0,5)+'-'+num.slice(5)) : (num.length===8 ? (num.slice(0,4)+'-'+num.slice(4)) : num);
+    const fmtBR = '(' + ddd + ') ' + numFmt;
+    // Substitui os telefones da Art na Régua no HTML
+    html = html.replace(/\+55\s*31\s*99781[- ]?6616/g, '+55 ' + ddd + ' ' + num.replace(/(\d{4,5})(\d{4})/,'$1-$2'));
+    html = html.replace(/\(31\)\s*99781-6616/g, fmtBR);
+    html = html.replace(/3199781[- ]?6616/g, ddd + numFmt.replace(/-/g,''));
+  }
   // Cores do tema: mapeia a cor do cliente para as variáveis douradas do layout
   // (calcula tom claro e escuro a partir da cor primária escolhida)
   let r=200,g=161,b=92;
