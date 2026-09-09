@@ -1065,11 +1065,24 @@ async function serveTenantSite(req, res) {
   }
   // Título e meta dinâmicos por tenant (SEO / aba do navegador / compartilhamento)
   const titulo = `${heroTitulo}${cidade} | Corte, Barba e Estilo`;
+  // URL absoluta do subdomínio (WhatsApp/link sharing precisa de URL absoluta p/ imagem)
+  const slugHost = (req.tenant && req.tenant.slug) ? `https://${req.tenant.slug}.brbpro.com.br` : `https://${req.headers.host || 'brbpro.com.br'}`;
+  const subFinal = String(heroSub || '').replace(/[.\s]+$/,'');
+  const descSocial = `${esc(nome)} — ${esc(subFinal)}. Agende pelo WhatsApp e confira os trabalhos no site.`;
   html = html.replace(/<title>.*?<\/title>/i, `<title>${esc(titulo)}</title>`);
   html = html.replace(/(<meta name="description" content=")[^"]*(")/i, `$1${esc(titulo + '. ' + heroSub)}$2`);
   html = html.replace(/(<meta property="og:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
+  html = html.replace(/(<meta property="og:description" content=")[^"]*(")/i, `$1${descSocial}$2`);
   html = html.replace(/(<meta property="og:site_name" content=")[^"]*(")/i, `$1${esc(nome)}$2`);
   html = html.replace(/(<meta name="twitter:title" content=")[^"]*(")/i, `$1${esc(titulo)}$2`);
+  html = html.replace(/(<meta name="twitter:description" content=")[^"]*(")/i, `$1${descSocial}$2`);
+  html = html.replace(/(<meta property="og:url" content=")[^"]*(")/i, `$1${slugHost}/$2`);
+  // og:image / twitter:image com URL ABSOLUTA (WhatsApp/redes não carregam imagem com caminho relativo)
+  if (fotosDoSite.length) {
+    const absImg = slugHost + fotosDoSite[0];
+    html = html.replace(/(<meta property="og:image" content=")[^"]*(")/i, `$1${absImg}$2`);
+    html = html.replace(/(<meta name="twitter:image" content=")[^"]*(")/i, `$1${absImg}$2`);
+  }
   // Logo do cliente (por URL — evita embutir base64 pesado no HTML)
   if (logoUrl) {
     // troca o bloco nav-logo INTEIRO (imagem + texto "Art na Régua" quebrado) pela marca do cliente
