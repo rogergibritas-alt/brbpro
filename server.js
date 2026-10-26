@@ -436,6 +436,8 @@ app.get('/api/foto/:id', async (req, res) => {
 // Serve mídia de marca da barbearia (logo / hero_imagem / video_hero / intro) por URL,
 // evitando embutir base64 pesado no HTML (deixa o site leve).
 app.get('/m/:slug/:tipo', async (req, res) => {
+  // CUSTO ZERO: vídeos de marca não são mais servidos
+  if (req.params.tipo === 'video' || req.params.tipo === 'intro') return res.status(410).end();
   if (!pool) return res.status(404).end();
   const slug = String(req.params.slug || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
   const tipo = String(req.params.tipo || '');
@@ -939,8 +941,9 @@ app.put('/api/master/tenants/:id/personalizar', requireAuth, requireTenantOwner,
     midias = {
       logo: limita(b.logo, 400000),          // logo comprimida ~600px
       hero_imagem: limita(b.hero_imagem, 2200000), // hero ~1600px
-      video_hero: limita(b.video_hero, 16000000),  // vídeo até ~16MB
-      intro_video: limita(b.intro_video, 20000000), // vídeo de introdução até ~20MB
+      // CUSTO ZERO: vídeos desativados (pesavam no banco e na banda). Qualquer envio apaga o vídeo salvo.
+      video_hero: b.video_hero === undefined ? undefined : '',
+      intro_video: b.intro_video === undefined ? undefined : '',
     };
   } catch (e) { return res.status(400).json({ ok: false, error: e.message }); }
   const cols = [
@@ -1055,10 +1058,10 @@ async function serveTenantSite(req, res) {
   // Mídia por URL (evita embutir base64 pesado no HTML)
   const logoUrl = t.logo && String(t.logo).startsWith('data:') ? `/m/${t.slug}/logo` : '';
   const heroUrl = t.hero_imagem && String(t.hero_imagem).startsWith('data:') ? `/m/${t.slug}/hero` : '';
-  const videoUrl = t.video_hero && String(t.video_hero).startsWith('data:') ? `/m/${t.slug}/video` : '';
-  const introUrl = t.intro_video && String(t.intro_video).startsWith('data:') ? `/m/${t.slug}/intro` : '';
+  const videoUrl = ''; // CUSTO ZERO: sem vídeo no topo
+  const introUrl = ''; // CUSTO ZERO: sem vídeo de introdução
   const cfg = JSON.stringify({ nome: nome, whatsapp: t.whatsapp, instagram: t.instagram, endereco: t.endereco, cidade: t.cidade, estado: t.estado, horario: t.horario, tema: t.tema, cor_primaria: cor1, cor_secundaria: cor2, slug: t.slug, slogan: t.slogan||'', hero_titulo: heroTitulo, hero_sub: heroSub, sobre_texto: t.sobre_texto||'', logo_url: logoUrl, hero_url: heroUrl, video_url: videoUrl, intro_url: introUrl });
-  // Vídeo de introdução do cliente: substitui o intro.mp4 padrão (da Art na Régua)
+  // Vídeo de introdução do cliente (desativado — CUSTO ZERO; introUrl é sempre vazio)
   if (introUrl) {
     // Troca TODO o bloco <video id="introVideo">...</video> pelo vídeo do cliente com muted (autoplay desbloqueado)
     const blobIntro = `<video id="introVideo" playsinline autoplay muted loop preload="auto"><source src="${introUrl}" type="video/mp4" /></video>`;
@@ -1183,6 +1186,7 @@ app.get('/api/tv/agora', async (req, res) => {
 
 // Vídeo persistido por tenant (configuracoes chave tv_video_url)
 app.get('/api/tv/video', async (req, res) => {
+  if (true) return res.json({ ok: true, url: '' }); // CUSTO ZERO: sem vídeo na TV
   if (!pool) return res.json({ ok: true, url: '' });
   const r = await pool.query("SELECT valor FROM configuracoes WHERE tenant_id=$1 AND chave='tv_video_url'", [req.tenantId])
     .catch(() => ({ rows: [] }));
@@ -1248,8 +1252,9 @@ app.get('/tv', (req, res) => {
 
 
 // Estáticos (css/js/images)
-app.use('/css', express.static(path.join(__dirname, 'public/css'), { setHeaders: function(res){ res.setHeader('Cache-Control','no-cache'); } }));
-app.use('/js', express.static(path.join(__dirname, 'public/js'), { setHeaders: function(res){ res.setHeader('Cache-Control','no-cache'); } }));
+// CUSTO ZERO: CSS/JS ficam 1 dia em cache (navegador + Cloudflare); os links usam ?v= para atualizar
+app.use('/css', express.static(path.join(__dirname, 'public/css'), { setHeaders: function(res){ res.setHeader('Cache-Control','public, max-age=86400'); } }));
+app.use('/js', express.static(path.join(__dirname, 'public/js'), { setHeaders: function(res){ res.setHeader('Cache-Control','public, max-age=86400'); } }));
 app.use('/images', express.static(path.join(__dirname, 'public/images'), { maxAge: '1h' }));
 
 app.get('/', async (req, res) => {

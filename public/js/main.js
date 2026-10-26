@@ -187,10 +187,8 @@
       document.querySelectorAll('img[src^="/m/"], img[src="' + T.logo_url + '"]').forEach(function (img) { img.src = T.logo_url; });
     }
     // 5) Vídeo/imagem de fundo do hero (por URL)
-    if (T.video_url) {
-      var hero = document.querySelector('.hero-bg');
-      if (hero) { hero.innerHTML = '<video class="hero-media" autoplay muted loop playsinline src="' + T.video_url + '"></video>'; }
-    } else if (T.hero_url) {
+    // CUSTO ZERO: sem vídeo no topo, só imagem
+    if (T.hero_url) {
       var hero2 = document.querySelector('.hero-bg');
       if (hero2) hero2.style.backgroundImage = 'url("' + T.hero_url + '")';
     }
