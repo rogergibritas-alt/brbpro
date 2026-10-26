@@ -1216,36 +1216,13 @@ function buscarRemoto(url, redirects, headers) {
   });
 }
 const rlProxy = rateLimit(240, 60 * 1000);
-app.get('/api/tv/proxy', rlProxy, async (req, res) => {
-  const alvo = String(req.query.url || '').trim();
-  if (!/^https?:\/\//.test(alvo)) return res.status(400).end();
-  try {
-    const u = new URL(alvo), host = u.hostname.toLowerCase();
-    const privado = !host || host === 'localhost' || host === '0.0.0.0' || /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^169\.254\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host === '::1' || host === '[::1]' || /\.local$/.test(host) || /\.internal$/.test(host) || /\.lan$/.test(host) || host.endsWith('.onion');
-    if (privado) return res.status(403).end();
-  } catch { return res.status(400).end(); }
-  try {
-    const { tipo, buf } = await buscarRemoto(alvo, 0);
-    const texto = buf.toString('utf8');
-    if (tipo.includes('mpegurl') || texto.trim().startsWith('#EXTM3U')) {
-      const base = new URL(alvo), baseDir = base.toString().slice(0, base.toString().lastIndexOf('/') + 1);
-      const linhas = texto.split('\n').map((linha) => { const l = linha.trim(); if (!l || l.startsWith('#')) return linha; const urlAbs = new URL(l, baseDir).toString(); return '/api/tv/proxy?url=' + encodeURIComponent(urlAbs); });
-      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl'); res.setHeader('Cache-Control', 'no-cache');
-      return res.send(linhas.join('\n'));
-    }
-    const ct = tipo || 'video/mp2t';
-    res.setHeader('Content-Type', ct); res.setHeader('Cache-Control', 'no-cache'); res.send(buf);
-  } catch (e) { res.status(502).end(); }
-});
+// DESATIVADO: o proxy retransmitia vídeo HD pelo servidor (estourou a franquia de tráfego do Render e
+// suspendeu o serviço) e era usado para canais pagos sem licença (Lei 9.610/98). Clipes e rádios do
+// painel tocam direto do navegador da TV, sem passar por aqui.
+app.get('/api/tv/proxy', (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.status(410).end(); });
 
 // Canais
-const CANAIS_FIXOS = [
-  { nome: 'Sony Movies', categoria: 'Filmes (TV)', url: 'http://45.162.64.114/SONY_MOVIES/index.m3u8' },
-  { nome: 'Studio Universal', categoria: 'Filmes (TV)', url: 'http://177.52.24.163/STUDIO-UNIVERSAL-HD/index.m3u8' },
-  { nome: 'Sony Channel', categoria: 'Filmes (TV)', url: 'http://45.190.28.50/SONY_HD/index.m3u8' },
-  { nome: 'AXN', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/AXN_HD/index.m3u8' },
-  { nome: 'Lifetime', categoria: 'Ação & Aventura', url: 'http://138.255.2.6:8084/LIFETIME/index.m3u8' },
-];
+const CANAIS_FIXOS = []; // canais de TV paga removidos (sem licença de retransmissão)
 app.get('/api/tv/canais', async (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, canais: CANAIS_FIXOS }); });
 
 // Rota /tv -> serve o tv.html do painel (com no-cache e marca do tenant)
