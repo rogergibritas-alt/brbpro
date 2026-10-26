@@ -119,7 +119,8 @@ const rlGeral = rateLimit(120, 60 * 1000);
 app.use(tenantResolver);
 
 /* ============================ RESOLUÇÃO DE TENANT ============================ */
-const RESERVED = new Set(['app', 'www', 'admin', 'painel', 'api', 'mail', 'ws']);
+// 'agentes' = Central de Agentes (serviço separado em agentes.brbpro.com.br) — nunca pode virar slug de barbearia
+const RESERVED = new Set(['app', 'www', 'admin', 'painel', 'api', 'mail', 'ws', 'agentes']);
 function getSlugFromHost(hostname) {
   if (!hostname) return null;
   hostname = hostname.split(':')[0].toLowerCase();

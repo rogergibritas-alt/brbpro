@@ -14,8 +14,9 @@ export default {
     const url = new URL(request.url);
     const hostname = url.hostname; // artnaregua.brbpro.com.br
 
-    // Não intercepta apex e app (deixe eles irem direto para Render)
-    if (hostname === 'brbpro.com.br' || hostname === 'www.brbpro.com.br' || hostname === 'app.brbpro.com.br') {
+    // Não intercepta apex, app e a Central de Agentes (serviço separado no Render)
+    if (hostname === 'brbpro.com.br' || hostname === 'www.brbpro.com.br' || hostname === 'app.brbpro.com.br' ||
+        hostname === 'agentes.brbpro.com.br') {
       return fetch(request);
     }
 
