@@ -68,6 +68,7 @@ app.use(helmet({
       'connect-src': ["'self'", 'https:', 'http:'],
       'worker-src': ["'self'", 'blob:'],
       'object-src': ["'none'"],
+      'frame-src': ["'self'", 'https://mestres.bargestao.com.br'],
       'frame-ancestors': ["'self'"],
       'base-uri': ["'self'"],
       'form-action': ["'self'"],
@@ -150,7 +151,8 @@ async function tenantResolver(req, res, next) {
   try {
     // Preview/segurança: permite forçar um tenant via ?tenant=slug (para demonstrar o produto)
     const qTenant = req.query && req.query.tenant ? String(req.query.tenant).toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
-    const fwd = req.headers['x-forwarded-host'] || req.headers['x-brb-original-host'] || '';
+    // O Worker da Cloudflare manda o host original em X-BRB-Original-Host (o Render pode reescrever X-Forwarded-Host)
+    const fwd = req.headers['x-brb-original-host'] || req.headers['x-forwarded-host'] || '';
     const host = (String(fwd).split(':')[0] || req.hostname || req.headers.host || '').toLowerCase();
     if (qTenant && qTenant !== 'app' && qTenant !== 'www' && !RESERVED.has(qTenant)) {
       const tenant = await lookupTenant(qTenant);
@@ -1228,6 +1230,14 @@ app.get('/api/tv/proxy', (req, res) => { res.setHeader('Cache-Control', 'no-stor
 // Canais
 const CANAIS_FIXOS = []; // canais de TV paga removidos (sem licença de retransmissão)
 app.get('/api/tv/canais', async (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, canais: CANAIS_FIXOS }); });
+
+// TV do bar (só comandas do bargestao) — veio do servidor antigo da Art na Régua
+app.get('/tv-bar', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'tv-bar.html'));
+});
+// Alias de saúde do servidor antigo
+app.get('/api/saude', (req, res) => res.json({ ok: true, banco: !!pool }));
 
 // Rota /tv -> serve o tv.html do painel (com no-cache e marca do tenant)
 app.get('/tv', (req, res) => {
