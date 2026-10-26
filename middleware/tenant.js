@@ -14,7 +14,7 @@
  *  app.get('/api/servicos', publicServicos) // usa req.tenant se existir, senão fallback
  */
 
-const RESERVED = new Set(['www', 'app', 'api', 'admin', 'painel', 'dashboard', 'brbpro']);
+const RESERVED = new Set(['www', 'app', 'api', 'admin', 'painel', 'dashboard', 'brbpro', 'agentes']);
 
 // Mapa slug -> tenant_id (ideal: buscar no DB/cache). Comece com memória + DB fallback.
 const TENANT_CACHE = new Map(); // slug -> { id, slug, nome }

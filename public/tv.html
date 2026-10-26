@@ -258,15 +258,7 @@
       ];
 
       // Fallback local (usado se o servidor não responder) — endereços fixos.
-      var FILMES_FALLBACK = [
-        { nome: 'Sony Movies', categoria: 'Filmes (TV)', url: 'http://45.162.64.114/SONY_MOVIES/index.m3u8' },
-        { nome: 'Studio Universal', categoria: 'Filmes (TV)', url: 'http://177.52.24.163/STUDIO-UNIVERSAL-HD/index.m3u8' },
-        { nome: 'Sony Channel', categoria: 'Filmes (TV)', url: 'http://45.190.28.50/SONY_HD/index.m3u8' },
-        { nome: 'AXN', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/AXN_HD/index.m3u8' },
-        { nome: 'A&E', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/AE_HD/index.m3u8' },
-        { nome: 'Lifetime', categoria: 'Ação & Aventura', url: 'http://138.255.2.6:8084/LIFETIME/index.m3u8' },
-        { nome: 'Adult Swim', categoria: 'Ação & Aventura', url: 'http://45.190.28.50/TRUTV_HD/index.m3u8' }
-      ];
+      var FILMES_FALLBACK = []; // canais de TV paga removidos (sem licença); o painel usa clipes e rádios
 
       // Lista viva de canais de filme (o servidor devolve a lista atual).
       var FILMES = FILMES_FALLBACK.slice();
@@ -275,7 +267,7 @@
         try {
           var r = await fetch('/api/tv/canais', { cache: 'no-store' });
           var j = await r.json();
-          if (j.ok && j.canais && j.canais.length) {
+          if (j.ok && Array.isArray(j.canais)) {
             FILMES = j.canais;
             return true;
           }
